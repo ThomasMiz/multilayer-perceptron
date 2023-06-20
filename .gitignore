@@ -1,0 +1,18 @@
+# IDE folders
+.idea
+.vscode
+
+# Python virtual environment folders
+venv
+env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mac OS
+.DS_Store
+
+# Jupyter notebook files
+*.ipynb_checkpoints/
