@@ -22,10 +22,10 @@ class SimpleThetaFunction(ThetaFunction):
         pass
 
     def primary(self, x: float) -> float:
-        return 1 if x == 0 else np.sign(x)
+        return (x >= 0) * 2 - 1
 
     def derivative(self, p: float, x: float) -> float:
-        return 1
+        return np.ones_like(p)
 
 
 class LinealThetaFunction(ThetaFunction):
