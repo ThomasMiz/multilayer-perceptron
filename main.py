@@ -1,6 +1,6 @@
 import numpy as np
 from src.network import Network, NetworkTrainer
-from src.theta import ThetaFunction, SimpleThetaFunction, LinealThetaFunction, TanhThetaFunction, LogisticThetaFunction
+from src.activation import ActivationFunction, SimpleActivationFunction, LinealActivationFunction, TanhActivationFunction, LogisticActivationFunction
 
 dataset = [
     np.array([1, 1]),
@@ -17,11 +17,12 @@ dataset_outputs = [
 ]
 
 arch = [
-    (2, SimpleThetaFunction()),
-    (3, SimpleThetaFunction()),
-    (1, SimpleThetaFunction())
+    (2, SimpleActivationFunction()),
+    (3, SimpleActivationFunction()),
+    (1, SimpleActivationFunction())
 ]
-eta = 0.1
+
+learning_rate = 0.1
 
 """
 
@@ -34,24 +35,24 @@ dataset_outputs = [
 ]
 
 arch = [
-    (2, LogisticThetaFunction({'beta': 0.5})),
-    (1, LogisticThetaFunction({'beta': 0.5}))
+    (2, LogisticActivationFunction({'beta': 0.5})),
+    (1, LogisticActivationFunction({'beta': 0.5}))
 ]
 
-eta = 0.5
+learning_rate = 0.5
 
 """
 
 n = Network(len(dataset[0]), arch)
-print(n.weights_per_layer)
-print(n.weights_per_layer[0].shape)
-# n.weights_per_layer = [np.array([[0.5, -0.6], [0.1, -0.2], [0.1, 0.7]]), np.array([[0.1], [-0.3]])]
-print(n.weights_per_layer)
+# print(n.layer_weights)
+# print(n.layer_weights[0].shape)
+# n.layer_weights = [np.array([[0.5, -0.6], [0.1, -0.2], [0.1, 0.7]]), np.array([[0.1], [-0.3]])]
+# print(n.layer_weights)
 
 
 result = n.evaluate(dataset[0])
 print(result)
 
-t = NetworkTrainer(n, eta)
+t = NetworkTrainer(n, learning_rate)
 t.train(dataset, dataset_outputs)
 print("IT HAS HAPPENED")

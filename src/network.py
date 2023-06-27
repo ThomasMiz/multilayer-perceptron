@@ -1,27 +1,50 @@
 import numpy as np
-from src.theta import ThetaFunction
+from src.activation import ActivationFunction
+from src.utils import columnarize
 
 
 class Network:
-    """Represents a multilayer perceptron"""
+    """Represents a multilayer perceptron."""
 
-    def __init__(self, input_size: int, arch: list[tuple[int, ThetaFunction]]) -> None:
+    def __init__(self, input_size: int, arch: list[tuple[int, ActivationFunction]]) -> None:
+        """
+        Creates a new Network with the specified architechture, represented as a list of tuples where [0] is the amount of neurons and [1] is the
+        activation function. All the neurons within a same layer use the same activation function.The first element of the list is the first layer,
+        the one that receives the input vector.
+        """
+
         if len(arch) < 2:
             raise ValueError("A network must have at least two layers")
 
         self.input_size = input_size
-        self.arch = arch
+        """The size of the input vector."""
 
-        # Stores the weights of the inputs for each layer. Each layer's weights are represented by a matrix
-        # Each matrix's size is decided by sizes of it's respective layer and it's previous layer (or input, for the first layer)
-        self.weights_per_layer = []
-        for i in range(len(arch)):
+        self.layer_count = len(arch)
+        """The amount of layers this network has."""
+
+        self.layer_sizes = []
+        """The amount of neurons in each layer."""
+
+        self.layer_activations = []
+        """The activation function for each layer."""
+
+        for layer_tuple in arch:
+            self.layer_sizes.append(layer_tuple[0])
+            self.layer_activations.append(layer_tuple[1])
+
+        self.layer_weights = []
+        """
+        The weights (and biases) for each layer, represented as a matrix in which w[0] are the biases, and w[1:] are the weights between the previous
+        layer (or input vector) and the neurons of the current layer.
+        """
+
+        for i in range(self.layer_count):
             # Initialize all weights as random values between -1 and 1
-            prev_layer_size = input_size if i == 0 else arch[i - 1][0]
-            self.weights_per_layer.append(np.round(np.random.uniform(-1, 1, (prev_layer_size + 1, arch[i][0])), 1))
+            prev_layer_size = input_size if i == 0 else self.layer_sizes[i - 1]
+            self.layer_weights.append(np.round(np.random.uniform(-1, 1, (prev_layer_size + 1, self.layer_sizes[i])), 1))
 
     def evaluate(self, input: np.ndarray):
-        input = np.array(input)
+        """Calculates this network's output vector for a given input vector."""
         if input.ndim != 1:
             raise ValueError("The input must have only 1 dimention")
         if len(input) != self.input_size:
@@ -29,22 +52,22 @@ class Network:
 
         # Feedforward
         prev_layer_output = input
-        for i in range(len(self.arch)):
-            layer_weights = self.weights_per_layer[i]
-            layer_theta = self.arch[i][1]
-            h_vector = np.matmul(np.concatenate((np.ones(1), prev_layer_output)), layer_weights)
-            prev_layer_output = layer_theta.primary(h_vector)
+        for i in range(self.layer_count):
+            # We prepend the input with a 1 to facilitate matrix multiplication, since the first row of the matrix are the biases.
+            h_vector = np.matmul(np.concatenate((np.ones(1), prev_layer_output)), self.layer_weights[i])
+            prev_layer_output = self.layer_activations[i].primary(h_vector)
 
         return prev_layer_output
 
 
 class NetworkTrainer:
-    def __init__(self, network: Network, eta: float) -> None:
+    """An object used for training a given neural network."""
+
+    def __init__(self, network: Network, learning_rate: float) -> None:
         self.network = network
-        self.eta = eta
+        self.learning_rate = learning_rate
 
     def evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray):
-        input = np.array(input)
         if input.ndim != 1:
             raise ValueError("The input must have only 1 dimention")
         if len(input) != self.network.input_size:
@@ -53,42 +76,36 @@ class NetworkTrainer:
         # Feedforward
         h_vector_per_layer = [None]
         outputs_per_layer = [input]
-        for i in range(len(self.network.arch)):
-            layer_weights = self.network.weights_per_layer[i]
-            layer_theta = self.network.arch[i][1]
+        for i in range(self.network.layer_count):
+            layer_weights = self.network.layer_weights[i]
+            layer_activation = self.network.layer_activations[i]
             h_vector = np.matmul(np.concatenate((np.ones(1), outputs_per_layer[-1])), layer_weights)
             h_vector_per_layer.append(h_vector)
-            outputs_per_layer.append(layer_theta.primary(h_vector))
+            outputs_per_layer.append(layer_activation.primary(h_vector))
 
         # Backpropagation
-        s_vector_per_layer = [None] * len(self.network.arch)
-        dw_matrix_per_layer = [None] * len(self.network.arch)
+        s_vector_per_layer = [None] * self.network.layer_count
+        dw_matrix_per_layer = [None] * self.network.layer_count
 
         # For last layer
-        layer_theta = self.network.arch[-1][1]
-        s_vector_per_layer[-1] = (expected_output - outputs_per_layer[-1]) * layer_theta.derivative(outputs_per_layer[-1], h_vector_per_layer[-1])
-        dw_matrix_per_layer[-1] = self.eta * np.concatenate((np.ones(1), outputs_per_layer[-2])) * s_vector_per_layer[-1]
-        if len(dw_matrix_per_layer[-1].shape) == 1:
-            dw_matrix_per_layer[-1] = dw_matrix_per_layer[-1][:, None]
+        layer_activation = self.network.layer_activations[-1]
+        s_vector_per_layer[-1] = (expected_output - outputs_per_layer[-1]) * layer_activation.derivative(outputs_per_layer[-1], h_vector_per_layer[-1])
+        dw_matrix_per_layer[-1] = columnarize(self.learning_rate * np.concatenate((np.ones(1), outputs_per_layer[-2])) * s_vector_per_layer[-1])
 
         # For inner layers
-        for i in range(len(self.network.arch) - 2, -1, -1):
-            layer_theta = self.network.arch[i][1]
-            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], self.network.weights_per_layer[i + 1][1:].T) * layer_theta.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i])
-            dw_matrix_per_layer[i] = self.eta * np.concatenate((np.ones(1), outputs_per_layer[i]))[:, None] * s_vector_per_layer[i]
-            if len(dw_matrix_per_layer[i].shape) == 1:
-                dw_matrix_per_layer[i] = dw_matrix_per_layer[i][:, None]
+        for i in range(self.network.layer_count - 2, -1, -1):
+            layer_activation = self.network.layer_activations[i]
+            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], self.network.layer_weights[i + 1][1:].T) * layer_activation.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i + 1])
+            dw_matrix_per_layer[i] = columnarize(self.learning_rate * np.concatenate((np.ones(1), outputs_per_layer[i]))[:, None] * s_vector_per_layer[i])
 
-        for i in range(len(self.network.weights_per_layer)):
-            self.network.weights_per_layer[i] += dw_matrix_per_layer[i]
+        for i in range(len(self.network.layer_weights)):
+            self.network.layer_weights[i] += dw_matrix_per_layer[i]
 
     def train(self, dataset: list[np.ndarray], expected_outputs: list[np.ndarray]):
         tutu = True
         while (tutu):
             for i in range(len(dataset)):
                 self.evaluate_and_adjust(dataset[i], expected_outputs[i])
-            print("\nWEIGHTS:")
-            print(self.network.weights_per_layer)
             tutu = False
             for i in range(len(dataset)):
                 obtained = self.network.evaluate(dataset[i])
