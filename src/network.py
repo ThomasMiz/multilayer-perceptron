@@ -1,6 +1,6 @@
 import numpy as np
 from src.activation import ActivationFunction
-from src.utils import columnarize
+from src.utils import columnarize, add_lists
 
 
 class Network:
@@ -67,7 +67,7 @@ class NetworkTrainer:
         self.network = network
         self.learning_rate = learning_rate
 
-    def evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray):
+    def evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray) -> list[np.ndarray]:
         if input.ndim != 1:
             raise ValueError("The input must have only 1 dimention")
         if len(input) != self.network.input_size:
@@ -98,14 +98,19 @@ class NetworkTrainer:
             s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], self.network.layer_weights[i + 1][1:].T) * layer_activation.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i + 1])
             dw_matrix_per_layer[i] = columnarize(self.learning_rate * np.concatenate((np.ones(1), outputs_per_layer[i]))[:, None] * s_vector_per_layer[i])
 
-        for i in range(len(self.network.layer_weights)):
-            self.network.layer_weights[i] += dw_matrix_per_layer[i]
+        return dw_matrix_per_layer
+
+    def adjust_weights(self, dw_matrix_per_layer: list[np.ndarray]) -> None:
+        add_lists(self.network.layer_weights, dw_matrix_per_layer)
 
     def train(self, dataset: list[np.ndarray], expected_outputs: list[np.ndarray]):
         tutu = True
         while (tutu):
+            weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
             for i in range(len(dataset)):
-                self.evaluate_and_adjust(dataset[i], expected_outputs[i])
+                add_lists(weights_adjustments, self.evaluate_and_adjust(dataset[i], expected_outputs[i]))
+            self.adjust_weights(weights_adjustments)
+
             tutu = False
             for i in range(len(dataset)):
                 obtained = self.network.evaluate(dataset[i])
