@@ -3,6 +3,8 @@ from src.theta import ThetaFunction
 
 
 class Network:
+    """Represents a multilayer perceptron"""
+
     def __init__(self, input_size: int, arch: list[tuple[int, ThetaFunction]]) -> None:
         if len(arch) < 2:
             raise ValueError("A network must have at least two layers")
@@ -16,7 +18,7 @@ class Network:
         for i in range(len(arch)):
             # Initialize all weights as random values between -1 and 1
             prev_layer_size = input_size if i == 0 else arch[i - 1][0]
-            self.weights_per_layer.append(np.round(np.random.uniform(-1, 1, (prev_layer_size, arch[i][0])), 1))
+            self.weights_per_layer.append(np.round(np.random.uniform(-1, 1, (prev_layer_size + 1, arch[i][0])), 1))
 
     def evaluate(self, input: np.ndarray):
         input = np.array(input)
@@ -26,14 +28,14 @@ class Network:
             raise ValueError("The input size must match the network's input size")
 
         # Feedforward
-        prev_layer_state = input
+        prev_layer_output = input
         for i in range(len(self.arch)):
             layer_weights = self.weights_per_layer[i]
             layer_theta = self.arch[i][1]
-            h_matrix = np.matmul(prev_layer_state, layer_weights)
-            prev_layer_state = layer_theta.primary(h_matrix)
+            h_vector = np.matmul(np.concatenate((np.ones(1), prev_layer_output)), layer_weights)
+            prev_layer_output = layer_theta.primary(h_vector)
 
-        return prev_layer_state
+        return prev_layer_output
 
 
 class NetworkTrainer:
@@ -49,31 +51,31 @@ class NetworkTrainer:
             raise ValueError("The input size must match the network's input size")
 
         # Feedforward
-        h_matrix_per_layer = [None]
-        states_per_layer = [input]
+        h_vector_per_layer = [None]
+        outputs_per_layer = [input]
         for i in range(len(self.network.arch)):
             layer_weights = self.network.weights_per_layer[i]
             layer_theta = self.network.arch[i][1]
-            h_matrix = np.matmul(states_per_layer[-1], layer_weights)
-            h_matrix_per_layer.append(h_matrix)
-            states_per_layer.append(layer_theta.primary(h_matrix))
+            h_vector = np.matmul(np.concatenate((np.ones(1), outputs_per_layer[-1])), layer_weights)
+            h_vector_per_layer.append(h_vector)
+            outputs_per_layer.append(layer_theta.primary(h_vector))
 
         # Backpropagation
-        ds_matrix_per_layer = [None] * len(self.network.arch)
+        s_vector_per_layer = [None] * len(self.network.arch)
         dw_matrix_per_layer = [None] * len(self.network.arch)
 
         # For last layer
         layer_theta = self.network.arch[-1][1]
-        ds_matrix_per_layer[-1] = (expected_output - states_per_layer[-1]) * layer_theta.derivative(states_per_layer[-1], h_matrix_per_layer[-1])
-        dw_matrix_per_layer[-1] = self.eta * ds_matrix_per_layer[-1] * states_per_layer[-2]
+        s_vector_per_layer[-1] = (expected_output - outputs_per_layer[-1]) * layer_theta.derivative(outputs_per_layer[-1], h_vector_per_layer[-1])
+        dw_matrix_per_layer[-1] = self.eta * np.concatenate((np.ones(1), outputs_per_layer[-2])) * s_vector_per_layer[-1]
         if len(dw_matrix_per_layer[-1].shape) == 1:
             dw_matrix_per_layer[-1] = dw_matrix_per_layer[-1][:, None]
 
         # For inner layers
         for i in range(len(self.network.arch) - 2, -1, -1):
             layer_theta = self.network.arch[i][1]
-            ds_matrix_per_layer[i] = np.matmul(ds_matrix_per_layer[i + 1], self.network.weights_per_layer[i + 1].T) * layer_theta.derivative(states_per_layer[i + 1], h_matrix_per_layer[i])
-            dw_matrix_per_layer[i] = self.eta * ds_matrix_per_layer[i] * states_per_layer[i][:, None]
+            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], self.network.weights_per_layer[i + 1][1:].T) * layer_theta.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i])
+            dw_matrix_per_layer[i] = self.eta * np.concatenate((np.ones(1), outputs_per_layer[i]))[:, None] * s_vector_per_layer[i]
             if len(dw_matrix_per_layer[i].shape) == 1:
                 dw_matrix_per_layer[i] = dw_matrix_per_layer[i][:, None]
 
@@ -85,7 +87,8 @@ class NetworkTrainer:
         while (tutu):
             for i in range(len(dataset)):
                 self.evaluate_and_adjust(dataset[i], expected_outputs[i])
-
+            print("\nWEIGHTS:")
+            print(self.network.weights_per_layer)
             tutu = False
             for i in range(len(dataset)):
                 obtained = self.network.evaluate(dataset[i])

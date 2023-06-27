@@ -9,7 +9,7 @@ dataset = [
     np.array([-1, -1]),
 ]
 
-dataset_outputs_xor = [
+dataset_outputs = [
     np.array([1]),
     np.array([-1]),
     np.array([-1]),
@@ -29,7 +29,7 @@ dataset = [
     np.array([0.5, 0.1, -0.2]),
 ]
 
-dataset_outputs_xor = [
+dataset_outputs = [
     np.array([0.6])
 ]
 
@@ -45,7 +45,7 @@ eta = 0.5
 n = Network(len(dataset[0]), arch)
 print(n.weights_per_layer)
 print(n.weights_per_layer[0].shape)
-#n.weights_per_layer = [np.array([[0.5, -0.6], [0.1, -0.2], [0.1, 0.7]]), np.array([[0.1], [-0.3]])]
+# n.weights_per_layer = [np.array([[0.5, -0.6], [0.1, -0.2], [0.1, 0.7]]), np.array([[0.1], [-0.3]])]
 print(n.weights_per_layer)
 
 
@@ -53,5 +53,5 @@ result = n.evaluate(dataset[0])
 print(result)
 
 t = NetworkTrainer(n, eta)
-t.train(dataset, dataset_outputs_xor)
+t.train(dataset, dataset_outputs)
 print("IT HAS HAPPENED")
