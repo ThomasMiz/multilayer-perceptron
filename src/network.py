@@ -1,5 +1,6 @@
 import numpy as np
 from src.activation import ActivationFunction
+from src.error import ErrorFunction
 from src.utils import columnarize, add_lists
 
 
@@ -63,9 +64,10 @@ class Network:
 class NetworkTrainer:
     """An object used for training a given neural network."""
 
-    def __init__(self, network: Network, learning_rate: float) -> None:
+    def __init__(self, network: Network, learning_rate: float, error_function: ErrorFunction) -> None:
         self.network = network
         self.learning_rate = learning_rate
+        self.error_function = error_function
 
     def evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray) -> list[np.ndarray]:
         if input.ndim != 1:
@@ -103,17 +105,15 @@ class NetworkTrainer:
     def adjust_weights(self, dw_matrix_per_layer: list[np.ndarray]) -> None:
         add_lists(self.network.layer_weights, dw_matrix_per_layer)
 
-    def train(self, dataset: list[np.ndarray], expected_outputs: list[np.ndarray]):
-        tutu = True
-        while (tutu):
+    def train(self, dataset: list[np.ndarray], expected_outputs: list[np.ndarray], acceptable_error):
+        while (True):
             weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
             for i in range(len(dataset)):
                 add_lists(weights_adjustments, self.evaluate_and_adjust(dataset[i], expected_outputs[i]))
             self.adjust_weights(weights_adjustments)
 
-            tutu = False
-            for i in range(len(dataset)):
-                obtained = self.network.evaluate(dataset[i])
-                expected = expected_outputs[i]
-                if not np.array_equal(obtained, expected):
-                    tutu = True
+            outputs = [self.network.evaluate(d) for d in dataset]
+            err = self.error_function.error_for_dataset(np.array(expected_outputs), np.array(outputs))
+            print(f"Error: {err}")
+            if err <= acceptable_error:
+                break

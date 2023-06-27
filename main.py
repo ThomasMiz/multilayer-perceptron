@@ -1,6 +1,7 @@
 import numpy as np
 from src.network import Network, NetworkTrainer
-from src.activation import ActivationFunction, SimpleActivationFunction, LinealActivationFunction, TanhActivationFunction, LogisticActivationFunction
+from src.activation import *
+from src.error import *
 
 dataset = [
     np.array([1, 1]),
@@ -22,6 +23,9 @@ arch = [
     (1, SimpleActivationFunction())
 ]
 
+error_function = CountNonmatchingErrorFunction()
+acceptable_error = 0
+
 learning_rate = 0.1
 
 """
@@ -39,6 +43,9 @@ arch = [
     (1, LogisticActivationFunction({'beta': 0.5}))
 ]
 
+error_function = CostAverageErrorFunction()
+acceptable_error = 1e-10
+
 learning_rate = 0.5
 
 """
@@ -53,6 +60,6 @@ n = Network(len(dataset[0]), arch)
 result = n.evaluate(dataset[0])
 print(result)
 
-t = NetworkTrainer(n, learning_rate)
-t.train(dataset, dataset_outputs)
+t = NetworkTrainer(n, learning_rate, error_function)
+t.train(dataset, dataset_outputs, acceptable_error)
 print("IT HAS HAPPENED")
