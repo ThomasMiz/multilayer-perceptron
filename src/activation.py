@@ -30,7 +30,7 @@ class SimpleActivationFunction(ActivationFunction):
         return np.ones_like(p)
 
 
-class LinealActivationFunction(ActivationFunction):
+class IdentityActivationFunction(ActivationFunction):
     """An identity function, returns the value unmodified."""
 
     def __init__(self, config=None) -> None:
@@ -77,7 +77,7 @@ class LogisticActivationFunction(ActivationFunction):
 
 map = {
     "simple": SimpleActivationFunction,
-    "lineal": LinealActivationFunction,
+    "lineal": IdentityActivationFunction,
     "tanh": TanhActivationFunction,
     "logistic": LogisticActivationFunction
 }

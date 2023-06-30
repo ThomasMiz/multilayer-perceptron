@@ -2,12 +2,13 @@ import numpy as np
 from src.activation import ActivationFunction
 from src.error import ErrorFunction
 from src.utils import columnarize, add_lists
+from src.weights_initializer import WeightsInitializer
 
 
 class Network:
     """Represents a multilayer perceptron."""
 
-    def __init__(self, input_size: int, arch: list[tuple[int, ActivationFunction]]) -> None:
+    def __init__(self, input_size: int, arch: list[tuple[int, ActivationFunction]], weight_initializer: WeightsInitializer) -> None:
         """
         Creates a new Network with the specified architechture, represented as a list of tuples where [0] is the amount of neurons and [1] is the
         activation function. All the neurons within a same layer use the same activation function.The first element of the list is the first layer,
@@ -36,13 +37,15 @@ class Network:
         self.layer_weights = []
         """
         The weights (and biases) for each layer, represented as a matrix in which w[0] are the biases, and w[1:] are the weights between the previous
-        layer (or input vector) and the neurons of the current layer.
+        layer (or input vector) and the neurons of the current layer. Each column in the matrix represents the bias and weights for one neuron.
         """
 
+        prev_layer_size = input_size
         for i in range(self.layer_count):
-            # Initialize all weights as random values between -1 and 1
-            prev_layer_size = input_size if i == 0 else self.layer_sizes[i - 1]
-            self.layer_weights.append(np.round(np.random.uniform(-1, 1, (prev_layer_size + 1, self.layer_sizes[i])), 1))
+            # Initialize weights and biases
+            weights_and_biases = weight_initializer.get_weights(i, self.layer_sizes[i], prev_layer_size)
+            self.layer_weights.append(np.vstack(weights_and_biases))
+            prev_layer_size = self.layer_sizes[i]
 
     def evaluate(self, input: np.ndarray):
         """Calculates this network's output vector for a given input vector."""

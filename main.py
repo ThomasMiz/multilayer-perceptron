@@ -2,6 +2,7 @@ import numpy as np
 from src.network import Network, NetworkTrainer
 from src.activation import *
 from src.error import *
+from src.weights_initializer import *
 
 dataset = [
     np.array([1, 1]),
@@ -22,6 +23,20 @@ arch = [
     (3, SimpleActivationFunction()),
     (1, SimpleActivationFunction())
 ]
+
+# weight_init_list = [
+#     np.array([[1, 2], [3, 4]]),
+#     np.array([[-0.1, -0.2, -0.3], [-2, 2, -0.2]]),
+#     np.array([[5], [6], [7]])
+# ]
+# bias_init_list = [
+#     np.array([-1, -2]),
+#     np.array([-3, -4, -5]),
+#     np.array([0.1])
+# ]
+# weight_init = ValuesWeightsInitializer(weights=weight_init_list, biases=bias_init_list)
+
+weight_init = RandomWeightsInitializer(biases_range=(-5, 5))
 
 error_function = CountNonmatchingErrorFunction()
 acceptable_error = 0
@@ -50,12 +65,7 @@ learning_rate = 0.5
 
 """
 
-n = Network(len(dataset[0]), arch)
-# print(n.layer_weights)
-# print(n.layer_weights[0].shape)
-# n.layer_weights = [np.array([[0.5, -0.6], [0.1, -0.2], [0.1, 0.7]]), np.array([[0.1], [-0.3]])]
-# print(n.layer_weights)
-
+n = Network(len(dataset[0]), arch, weight_init)
 
 result = n.evaluate(dataset[0])
 print(result)
