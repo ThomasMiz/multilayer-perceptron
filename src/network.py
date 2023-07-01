@@ -95,7 +95,7 @@ class NetworkTrainer:
         # For last layer
         layer_activation = self.network.layer_activations[-1]
         s_vector_per_layer[-1] = (expected_output - outputs_per_layer[-1]) * layer_activation.derivative(outputs_per_layer[-1], h_vector_per_layer[-1])
-        dw_matrix_per_layer[-1] = columnarize(self.learning_rate * np.concatenate((np.ones(1), outputs_per_layer[-2])) * s_vector_per_layer[-1])
+        dw_matrix_per_layer[-1] = columnarize(self.learning_rate * np.concatenate((np.ones(1), outputs_per_layer[-2]))[:, None] * s_vector_per_layer[-1])
 
         # For inner layers
         for i in range(self.network.layer_count - 2, -1, -1):
