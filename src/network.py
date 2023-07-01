@@ -109,7 +109,9 @@ class NetworkTrainer:
         add_lists(self.network.layer_weights, dw_matrix_per_layer)
 
     def train(self, dataset: list[np.ndarray], expected_outputs: list[np.ndarray], acceptable_error):
+        epoch = 0
         while (True):
+            epoch += 1
             weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
             for i in range(len(dataset)):
                 add_lists(weights_adjustments, self.evaluate_and_adjust(dataset[i], expected_outputs[i]))
@@ -117,6 +119,6 @@ class NetworkTrainer:
 
             outputs = [self.network.evaluate(d) for d in dataset]
             err = self.error_function.error_for_dataset(np.array(expected_outputs), np.array(outputs))
-            print(f"Error: {err}")
+            print(f"Error after epoch {epoch}: {err}")
             if err <= acceptable_error:
                 break
