@@ -27,7 +27,7 @@ arch = [
 ]
 
 """
-# Initialize weights and biases with predefined values (these ones work).
+# Initialize weights and biases with predefined values (these ones work even without an optimizer).
 weight_init_list = [
     np.array([[1, 2], [3, 4]]),
     np.array([[-0.1, -0.2, -0.3], [-2, 2, -0.2]]),
@@ -39,6 +39,9 @@ bias_init_list = [
     np.array([0.1])
 ]
 weight_init = ValuesWeightsInitializer(weights=weight_init_list, biases=bias_init_list)
+
+optimizer = GradientDescentOptimizer()
+
 """
 
 """
@@ -65,18 +68,21 @@ bias_init_list = [
     np.array([0.02001691])
 ]
 
+optimizer = GradientDescentOptimizer()
+
 weight_init = ValuesWeightsInitializer(weights=weight_init_list, biases=bias_init_list)
 """
 
-# Initialize weights and biases with random values in a range. This usually works without an optimizer (but not always).
+# Initialize weights and biases with random values in a range.
 weight_init = RandomWeightsInitializer(biases_range=(-5, 5))
+# optimizer = GradientDescentOptimizer() # Random weights don't always work with no optimizer (that is, with gradient descent)
+optimizer = MomentumOptimizer({'alpha': 0.8}) # Momentum fixes this issue
 
 error_function = CountNonmatchingErrorFunction()
 acceptable_error = 0
 
 learning_rate = 0.1
 
-optimizer = GradientDescentOptimizer()
 
 n = Network(len(dataset[0]), arch, weight_init)
 
