@@ -1,8 +1,10 @@
 import numpy as np
-from src.network import Network, NetworkTrainer
+from src.network import Network
+from src.trainer import NetworkTrainer
 from src.activation import *
 from src.error import *
 from src.weights_initializer import *
+from src.optimizer import *
 
 dataset = [
     np.array([1, 1]),
@@ -74,6 +76,8 @@ acceptable_error = 0
 
 learning_rate = 0.1
 
+optimizer = GradientDescentOptimizer()
+
 n = Network(len(dataset[0]), arch, weight_init)
 
 print("Initial results:")
@@ -82,7 +86,7 @@ for i in range(len(dataset)):
     print(f"Input {i}: Expected: {dataset_outputs[i]}, got: {r} {'✅' if np.array_equal(r, dataset_outputs[i]) else '❌'}")
 
 print("\nTraining...")
-t = NetworkTrainer(n, learning_rate, error_function)
+t = NetworkTrainer(n, learning_rate, error_function, optimizer)
 t.train(dataset, dataset_outputs, acceptable_error)
 
 print("\nFinal results:")

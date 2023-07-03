@@ -1,8 +1,10 @@
 import numpy as np
-from src.network import Network, NetworkTrainer
+from src.network import Network
+from src.trainer import NetworkTrainer
 from src.activation import *
 from src.error import *
 from src.weights_initializer import *
+from src.optimizer import *
 
 digits = """
 .XXX.  ,  ..X..  ,  .XXX.  ,  .XXX.  ,  ...X.  ,  XXXXX  ,  ..XX.  ,  XXXXX  ,  .XXX.  ,  .XXX. ;
@@ -40,12 +42,14 @@ acceptable_error = 0
 weights_init = RandomWeightsInitializer()
 learning_rate = 0.01
 
+optimizer = GradientDescentOptimizer()
+
 n = Network(len(dataset[0]), arch, weights_init)
 
 result = n.evaluate(dataset[0])
 print(result)
 
-t = NetworkTrainer(n, learning_rate, error_function)
+t = NetworkTrainer(n, learning_rate, error_function, optimizer)
 t.train(dataset, dataset_outputs, acceptable_error)
 print("IT HAS HAPPENED")
 
