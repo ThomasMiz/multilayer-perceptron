@@ -76,7 +76,8 @@ weight_init = ValuesWeightsInitializer(weights=weight_init_list, biases=bias_ini
 # Initialize weights and biases with random values in a range.
 weight_init = RandomWeightsInitializer(biases_range=(-5, 5))
 # optimizer = GradientDescentOptimizer() # Random weights don't always work with no optimizer (that is, with gradient descent)
-optimizer = MomentumOptimizer({'alpha': 0.8}) # Momentum fixes this issue
+# optimizer = MomentumOptimizer(alpha=0.8) # Momentum fixes this issue
+optimizer = RMSPropOptimizer(gamma=0.9)
 
 error_function = CountNonmatchingErrorFunction()
 acceptable_error = 0

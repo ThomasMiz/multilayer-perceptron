@@ -34,17 +34,20 @@ class NetworkTrainer:
 
         # Backpropagation
         s_vector_per_layer = [None] * self.network.layer_count
-        dw_matrix_per_layer = [None] * self.network.layer_count
 
         # For last layer
         layer_activation = self.network.layer_activations[-1]
         s_vector_per_layer[-1] = (expected_output - outputs_per_layer[-1]) * layer_activation.derivative(outputs_per_layer[-1], h_vector_per_layer[-1])
-        dw_matrix_per_layer[-1] = columnarize(self.optimizer.apply(self.network.layer_count - 1, self.learning_rate, np.concatenate((np.ones(1), outputs_per_layer[-2]))[:, None] * s_vector_per_layer[-1]))
 
         # For inner layers
         for i in range(self.network.layer_count - 2, -1, -1):
+            layer_weights = self.network.layer_weights[i + 1]
             layer_activation = self.network.layer_activations[i]
-            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], self.network.layer_weights[i + 1][1:].T) * layer_activation.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i + 1])
+            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], layer_weights[1:].T) * layer_activation.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i + 1])
+
+        # Calculate delta weights matrices
+        dw_matrix_per_layer = [None] * self.network.layer_count
+        for i in range(self.network.layer_count):
             dw_matrix_per_layer[i] = columnarize(self.optimizer.apply(i, self.learning_rate, np.concatenate((np.ones(1), outputs_per_layer[i]))[:, None] * s_vector_per_layer[i]))
 
         return dw_matrix_per_layer

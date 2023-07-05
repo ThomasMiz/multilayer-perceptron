@@ -43,6 +43,19 @@ class IdentityActivationFunction(ActivationFunction):
         return np.ones_like(p)
 
 
+class ReluActivationFunction(ActivationFunction):
+    """An activation function that returns max(x, 0)."""
+
+    def __init__(self, config=None) -> None:
+        pass
+
+    def primary(self, x: np.ndarray) -> np.ndarray:
+        return np.maximum(x, 0)
+
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return (x >= 0) * 1
+
+
 class TanhActivationFunction(ActivationFunction):
     """An activation function whose image is (-1, 1)."""
     range = (-1, 1)
@@ -77,7 +90,8 @@ class LogisticActivationFunction(ActivationFunction):
 
 map = {
     "simple": SimpleActivationFunction,
-    "lineal": IdentityActivationFunction,
+    "indentity": IdentityActivationFunction,
+    "relu": ReluActivationFunction,
     "tanh": TanhActivationFunction,
     "logistic": LogisticActivationFunction
 }
