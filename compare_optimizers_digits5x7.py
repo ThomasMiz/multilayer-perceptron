@@ -18,8 +18,8 @@ CONFIGURATIONS = {
 }
 
 arch = [
-    (24, TanhActivationFunction({'beta': 1})),
-    (20, TanhActivationFunction({'beta': 1})),
+    (24, TanhActivationFunction()),
+    (20, TanhActivationFunction()),
     (10, SimpleActivationFunction())
 ]
 

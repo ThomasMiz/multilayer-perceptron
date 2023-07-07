@@ -20,7 +20,7 @@ class SimpleActivationFunction(ActivationFunction):
     """An activation function that returns 1 if x >= 0, -1 otherwise."""
     range = (-1, 1)
 
-    def __init__(self, config=None) -> None:
+    def __init__(self) -> None:
         pass
 
     def primary(self, x: np.ndarray) -> np.ndarray:
@@ -33,7 +33,7 @@ class SimpleActivationFunction(ActivationFunction):
 class IdentityActivationFunction(ActivationFunction):
     """An identity function, returns the value unmodified."""
 
-    def __init__(self, config=None) -> None:
+    def __init__(self) -> None:
         pass
 
     def primary(self, x: np.ndarray) -> np.ndarray:
@@ -46,7 +46,7 @@ class IdentityActivationFunction(ActivationFunction):
 class ReluActivationFunction(ActivationFunction):
     """An activation function that returns max(x, 0)."""
 
-    def __init__(self, config=None) -> None:
+    def __init__(self) -> None:
         pass
 
     def primary(self, x: np.ndarray) -> np.ndarray:
@@ -60,15 +60,13 @@ class TanhActivationFunction(ActivationFunction):
     """An activation function whose image is (-1, 1)."""
     range = (-1, 1)
 
-    def __init__(self, config) -> None:
-        if 'beta' not in config or config['beta'] is None:
-            raise Exception('TanhActivationFunction requires a beta parameter')
-        self.beta = float(config['beta'])
+    def __init__(self, beta: float=1.0) -> None:
+        self.beta = beta
 
-    def primary(self, x: float) -> float:
+    def primary(self, x: np.ndarray) -> np.ndarray:
         return np.tanh(self.beta * x)
 
-    def derivative(self, p: float, x: float) -> float:
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
         return self.beta * (1 - p*p)
 
 
@@ -76,16 +74,14 @@ class LogisticActivationFunction(ActivationFunction):
     """A logistic function whose image is (0, 1)."""
     range = (0, 1)
 
-    def __init__(self, config) -> None:
-        if 'beta' not in config or config['beta'] is None:
-            raise Exception('LogisticActivationFunction requires a beta parameter')
-        self.beta = float(config['beta'])
+    def __init__(self, beta: float=0.5) -> None:
+        self.minus_beta_times_two = -2 * beta
 
-    def primary(self, x: float) -> float:
-        return 1 / (1 + np.exp(-2 * self.beta * x))
+    def primary(self, x: np.ndarray) -> np.ndarray:
+        return 1 / (1 + np.exp(self.minus_beta_times_two * x))
 
-    def derivative(self, p: float, x: float) -> float:
-        return 2 * self.beta * p * (1 - p)
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return self.minus_beta_times_two * p * (p - 1)
 
 
 map = {
