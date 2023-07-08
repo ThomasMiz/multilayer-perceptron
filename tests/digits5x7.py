@@ -1,3 +1,6 @@
+import sys # Python please fix your import system to work across different folders
+sys.path[0] = sys.path[0].rstrip("abcdefghijklmnopqrstuvwxyz").removesuffix('/').removesuffix('\\')
+
 import numpy as np
 from src.network import Network
 from src.trainer import NetworkTrainer
