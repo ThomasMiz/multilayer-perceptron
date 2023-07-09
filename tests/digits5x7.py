@@ -54,7 +54,7 @@ print(result)
 
 t = NetworkTrainer(n, learning_rate, error_function, optimizer)
 t.train(dataset, dataset_outputs, acceptable_error)
-print("IT HAS HAPPENED")
+print("Training complete!")
 
 for i in range(len(dataset)):
     r = n.evaluate(dataset[i])

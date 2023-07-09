@@ -46,7 +46,7 @@ class Network:
             self.layer_weights.append(np.vstack(weights_and_biases))
             prev_layer_size = self.layer_sizes[i]
 
-    def evaluate(self, input: np.ndarray):
+    def evaluate(self, input: np.ndarray) -> np.ndarray:
         """Calculates this network's output vector for a given input vector."""
         if input.ndim != 1:
             raise ValueError("The input must have only 1 dimention")
@@ -57,7 +57,8 @@ class Network:
         prev_layer_output = input
         for i in range(self.layer_count):
             # We prepend the input with a 1 to facilitate matrix multiplication, since the first row of the matrix are the biases.
-            h_vector = np.matmul(np.concatenate((np.ones(1), prev_layer_output)), self.layer_weights[i])
+            h_vector = np.matmul(prev_layer_output, self.layer_weights[i][1:])
+            np.add(h_vector, self.layer_weights[i][0], out=h_vector)
             prev_layer_output = self.layer_activations[i].primary(h_vector)
 
         return prev_layer_output

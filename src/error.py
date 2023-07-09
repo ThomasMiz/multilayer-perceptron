@@ -33,10 +33,14 @@ class CostAverageErrorFunction(ErrorFunction):
     """An error function that """
 
     def error_for_single(self, expected_output: np.ndarray, output: np.ndarray) -> float:
-        return np.average(np.power(expected_output - output, 2)) * 0.5
+        tmp = np.subtract(expected_output, output)
+        np.power(tmp, 2, out=tmp)
+        return np.average(tmp) * 0.5
 
     def error_for_dataset(self, expected_outputs: np.ndarray, outputs: np.ndarray) -> float:
-        return np.average(np.power((expected_outputs - outputs).sum(axis=1), 2)) * 0.5
+        tmp = (expected_outputs - outputs).sum(axis=1)
+        np.power(tmp, 2, out=tmp)
+        return np.average(tmp) * 0.5
 
 
 map = {

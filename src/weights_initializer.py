@@ -33,8 +33,8 @@ class RandomWeightsInitializer(WeightsInitializer):
         biases = np.random.uniform(self.biases_range[0], self.biases_range[1], layer_size)
         weights = np.random.uniform(self.weights_range[0], self.weights_range[1], (prev_layer_size, layer_size))
         if self.round_decimal_digits_to is not None:
-            biases = np.round(biases, self.round_decimal_digits_to)
-            weights = np.round(weights, self.round_decimal_digits_to)
+            np.round(biases, self.round_decimal_digits_to, out=biases)
+            np.round(weights, self.round_decimal_digits_to, out=weights)
 
         return biases, weights
 
