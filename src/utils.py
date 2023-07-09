@@ -7,4 +7,4 @@ def columnarize(x: np.ndarray):
 def add_lists(x: list, y: list):
     """For each element in x, adds the corresponding element in y. The result is stored in-place in x."""
     for i in range(len(x)):
-        x[i] += y[i]
+        np.add(x[i], y[i], out=x[i])

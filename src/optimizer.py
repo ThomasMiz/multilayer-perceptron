@@ -12,8 +12,12 @@ class Optimizer(ABC):
         """Optimizers may implement this method to perform initialization before training starts."""
         pass
 
+    def start_next_epoch(self, epoch_number: int):
+        """Optimizers may implement this method to perform calculations at the beginning of each epoch."""
+        pass
+
     @abstractmethod
-    def apply(self, layer_number: int, learning_date: float, epoch_number: int, dw: np.ndarray) -> np.ndarray:
+    def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
         """Calculates the delta-weights matrix to apply for a layer and returns it."""
         pass
 
@@ -27,8 +31,9 @@ class GradientDescentOptimizer(Optimizer):
     def parse(config=None):
         pass
 
-    def apply(self, layer_number: int, learning_date: float, epoch_number: int, dw: np.ndarray) -> np.ndarray:
-        return learning_date * dw
+    def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
+        # learning_rate * dw
+        return np.multiply(dw, learning_rate, out=dw)
 
 
 class MomentumOptimizer(Optimizer):
@@ -42,10 +47,14 @@ class MomentumOptimizer(Optimizer):
     def initialize(self, network: Network):
         self.previous_dw = [np.zeros_like(weights) for weights in network.layer_weights]
 
-    def apply(self, layer_number: int, learning_date: float, epoch_number: int, dw: np.ndarray) -> np.ndarray:
-        dw_matrix =  learning_date * dw + self.alpha * self.previous_dw[layer_number]
-        self.previous_dw[layer_number] = dw_matrix
-        return dw_matrix
+    def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
+        # learning_rate * dw + self.alpha * self.previous_dw[layer_number]
+        previous = self.previous_dw[layer_number]
+        np.multiply(previous, self.alpha, out=previous)
+        np.multiply(dw, learning_rate, out=dw)
+        np.add(dw, previous, out=dw)
+        np.copyto(previous, dw)
+        return dw
 
 
 class RMSPropOptimizer(Optimizer):
@@ -61,11 +70,23 @@ class RMSPropOptimizer(Optimizer):
 
     def initialize(self, network: Network):
         self.previous_s_matrix = [np.zeros_like(weights) for weights in network.layer_weights]
+        self.tmp_matrices = [np.zeros_like(weights) for weights in network.layer_weights]
 
-    def apply(self, layer_number: int, learning_date: float, epoch_number: int, dw: np.ndarray) -> np.ndarray:
-        s_matrix =  self.gamma * self.previous_s_matrix[layer_number] + (1 - self.gamma) * np.square(dw)
-        self.previous_s_matrix[layer_number] = s_matrix
-        return learning_date / np.sqrt(s_matrix + self.epsilon) * dw
+    def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
+        # s_matrix = self.gamma * self.previous_s_matrix[layer_number] + (1 - self.gamma) * np.square(dw)
+        tmp = self.tmp_matrices[layer_number]
+        np.square(dw, out=tmp)
+        np.multiply(tmp, 1 - self.gamma, out=tmp)
+        previous = self.previous_s_matrix[layer_number]
+        np.multiply(previous, self.gamma, out=previous)
+        np.add(previous, tmp, out=previous)
+
+        # learning_rate / np.sqrt(s_matrix + self.epsilon) * dw
+        np.copyto(tmp, previous)
+        np.add(tmp, self.epsilon, out=tmp)
+        np.sqrt(tmp, out=tmp)
+        np.divide(learning_rate, tmp, out=tmp)
+        return np.multiply(tmp, dw, out=dw)
 
 
 class AdamOptimizer(Optimizer):
@@ -75,6 +96,8 @@ class AdamOptimizer(Optimizer):
         self.beta1 = beta1
         self.beta2 = beta2
         self.epsilon = epsilon
+        self.beta1_power_epoch = 1
+        self.beta2_power_epoch = 1
         if self.beta1 < 0 or self.beta1 >= 1:
             print(f"⚠️⚠️⚠️ Warning: AdamOptimizer received beta1 outside of range [0, 1): {self.beta1}")
         if self.beta2 < 0 or self.beta2 >= 1:
@@ -85,13 +108,35 @@ class AdamOptimizer(Optimizer):
     def initialize(self, network: Network):
         self.m_per_layer = [np.zeros_like(weights) for weights in network.layer_weights]
         self.v_per_layer = [np.zeros_like(weights) for weights in network.layer_weights]
+        self.tmp_matrices = [np.zeros_like(weights) for weights in network.layer_weights]
 
-    def apply(self, layer_number: int, learning_date: float, epoch_number: int, dw: np.ndarray) -> np.ndarray:
-        self.m_per_layer[layer_number] = self.beta1 * self.m_per_layer[layer_number] + (1 - self.beta1) * dw
-        self.v_per_layer[layer_number] = self.beta2 * self.v_per_layer[layer_number] + (1 - self.beta2) * np.square(dw)
+    def start_next_epoch(self, epoch_number: int):
+        self.beta1_power_epoch = np.power(self.beta1, epoch_number)
+        self.beta2_power_epoch = np.power(self.beta2, epoch_number)
 
-        m_hat = self.m_per_layer[layer_number] / (1 - np.power(self.beta1, epoch_number))
-        v_hat = self.v_per_layer[layer_number] / (1 - np.power(self.beta2, epoch_number))
+    def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
+        tmp = self.tmp_matrices[layer_number]
 
-        dw_matrix = learning_date * m_hat / (np.sqrt(v_hat) + self.epsilon)
-        return dw_matrix
+        # self.m_per_layer[layer_number] = self.beta1 * self.m_per_layer[layer_number] + (1 - self.beta1) * dw
+        m = self.m_per_layer[layer_number]
+        np.multiply(m, self.beta1, out=m)
+        np.multiply(dw, 1 - self.beta1, out=tmp)
+        np.add(m, tmp, out=m)
+
+        # self.v_per_layer[layer_number] = self.beta2 * self.v_per_layer[layer_number] + (1 - self.beta2) * np.square(dw)
+        v = self.v_per_layer[layer_number]
+        np.multiply(v, self.beta2, out=v)
+        np.square(dw, out=tmp)
+        np.multiply(tmp, 1 - self.beta2, out=tmp)
+        np.add(v, tmp, out=v)
+
+        # m_hat = self.m_per_layer[layer_number] / (1 - np.power(self.beta1, epoch_number))
+        np.divide(m, 1 - self.beta1_power_epoch, out=dw)
+        # v_hat = self.v_per_layer[layer_number] / (1 - np.power(self.beta2, epoch_number))
+        np.divide(v, 1 - self.beta2_power_epoch, out=tmp)
+
+        # dw = learning_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)
+        np.sqrt(tmp, out=tmp)
+        np.add(tmp, self.epsilon, out=tmp)
+        np.multiply(dw, learning_rate, out=dw)
+        return np.divide(dw, tmp, out=dw)

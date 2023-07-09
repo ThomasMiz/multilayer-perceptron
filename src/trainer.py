@@ -26,29 +26,30 @@ class NetworkTrainer:
         h_vector_per_layer = [None]
         outputs_per_layer = [input]
         for i in range(self.network.layer_count):
-            layer_weights = self.network.layer_weights[i]
-            layer_activation = self.network.layer_activations[i]
-            h_vector = np.matmul(np.concatenate((np.ones(1), outputs_per_layer[-1])), layer_weights)
+            weights = self.network.layer_weights[i]
+            activation = self.network.layer_activations[i]
+            h_vector = np.matmul(outputs_per_layer[-1], weights[1:])
+            np.add(h_vector, weights[0], out=h_vector)
             h_vector_per_layer.append(h_vector)
-            outputs_per_layer.append(layer_activation.primary(h_vector))
+            outputs_per_layer.append(activation.primary(h_vector))
 
         # Backpropagation
         s_vector_per_layer = [None] * self.network.layer_count
 
         # For last layer
-        layer_activation = self.network.layer_activations[-1]
-        s_vector_per_layer[-1] = (expected_output - outputs_per_layer[-1]) * layer_activation.derivative(outputs_per_layer[-1], h_vector_per_layer[-1])
+        activation = self.network.layer_activations[-1]
+        s_vector_per_layer[-1] = (expected_output - outputs_per_layer[-1]) * activation.derivative(outputs_per_layer[-1], h_vector_per_layer[-1])
 
         # For inner layers
         for i in range(self.network.layer_count - 2, -1, -1):
-            layer_weights = self.network.layer_weights[i + 1]
-            layer_activation = self.network.layer_activations[i]
-            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], layer_weights[1:].T) * layer_activation.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i + 1])
+            weights = self.network.layer_weights[i + 1]
+            activation = self.network.layer_activations[i]
+            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], weights[1:].T) * activation.derivative(outputs_per_layer[i + 1], h_vector_per_layer[i + 1])
 
         # Calculate delta weights matrices
         dw_matrix_per_layer = [None] * self.network.layer_count
         for i in range(self.network.layer_count):
-            dw_matrix_per_layer[i] = columnarize(self.optimizer.apply(i, self.learning_rate, epoch_number, np.concatenate((np.ones(1), outputs_per_layer[i]))[:, None] * s_vector_per_layer[i]))
+            dw_matrix_per_layer[i] = columnarize(self.optimizer.apply(i, self.learning_rate, np.concatenate((np.ones(1), outputs_per_layer[i]))[:, None] * s_vector_per_layer[i]))
 
         return dw_matrix_per_layer
 
@@ -56,6 +57,7 @@ class NetworkTrainer:
         epoch = 0
         while (True):
             epoch += 1
+            self.optimizer.start_next_epoch(epoch)
             weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
             for i in range(len(dataset)):
                 add_lists(weights_adjustments, self.evaluate_and_adjust(dataset[i], expected_outputs[i], epoch))
@@ -74,6 +76,7 @@ class NetworkTrainer:
         finish_reason = 'unspecified'
         while (True):
             epoch += 1
+            self.optimizer.start_next_epoch(epoch)
             weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
             for i in range(len(dataset)):
                 add_lists(weights_adjustments, self.evaluate_and_adjust(dataset[i], expected_outputs[i], epoch))
