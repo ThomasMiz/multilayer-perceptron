@@ -16,7 +16,7 @@ class NetworkTrainer:
 
         self.optimizer.initialize(network)
 
-    def evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray, epoch_number: int) -> list[np.ndarray]:
+    def evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray) -> list[np.ndarray]:
         if input.ndim != 1:
             raise ValueError("The input must have only 1 dimention")
         if len(input) != self.network.input_size:
@@ -60,7 +60,7 @@ class NetworkTrainer:
             self.optimizer.start_next_epoch(epoch)
             weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
             for i in range(len(dataset)):
-                add_lists(weights_adjustments, self.evaluate_and_adjust(dataset[i], expected_outputs[i], epoch))
+                add_lists(weights_adjustments, self.evaluate_and_adjust(dataset[i], expected_outputs[i]))
             self.network.adjust_weights(weights_adjustments)
 
             outputs = [self.network.evaluate(d) for d in dataset]
@@ -73,6 +73,7 @@ class NetworkTrainer:
         epoch = 0
         error_history = []
         error_history.append(self.error_function.error_for_dataset(np.array(expected_outputs), np.array([self.network.evaluate(d) for d in dataset])))
+        print(f"Error at epoch {epoch}: {error_history[0]}")
         finish_reason = 'unspecified'
         while (True):
             epoch += 1
@@ -85,6 +86,7 @@ class NetworkTrainer:
             outputs = [self.network.evaluate(d) for d in dataset]
             err = self.error_function.error_for_dataset(np.array(expected_outputs), np.array(outputs))
             error_history.append(err)
+            print(f"Error after epoch {epoch}: {err}")
             if err <= acceptable_error:
                 finish_reason = 'Acceptable error reached'
                 break

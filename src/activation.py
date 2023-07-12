@@ -15,6 +15,11 @@ class ActivationFunction(ABC):
         """Used to multiply the delta_w of a perceptron while training. Receives p, the value of primary(x), and x."""
         pass
 
+    @abstractmethod
+    def to_json(self) -> dict:
+        """Serializes this ActivationFunction to a dict."""
+        pass
+
 
 class SimpleActivationFunction(ActivationFunction):
     """An activation function that returns 1 if x >= 0, -1 otherwise."""
@@ -37,6 +42,15 @@ class SimpleActivationFunction(ActivationFunction):
         out.fill(1)
         return out
 
+    def to_json(self) -> dict:
+        return {"type": "simple"}
+
+    def __repr__(self) -> str:
+        return "SimpleActivationFunction"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
 
 class IdentityActivationFunction(ActivationFunction):
     """An identity function, returns the value unmodified."""
@@ -53,6 +67,15 @@ class IdentityActivationFunction(ActivationFunction):
         out.fill(1)
         return out
 
+    def to_json(self) -> dict:
+        return {"type": "identity"}
+
+    def __repr__(self) -> str:
+        return "IdentityActivationFunction"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
 
 class ReluActivationFunction(ActivationFunction):
     """An activation function that returns max(x, 0)."""
@@ -68,6 +91,15 @@ class ReluActivationFunction(ActivationFunction):
         if out is None:
             out = np.zeros_like(x)
         return np.greater_equal(x, 0, out=out)
+
+    def to_json(self) -> dict:
+        return {"type": "relu"}
+
+    def __repr__(self) -> str:
+        return "ReluActivationFunction"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class TanhActivationFunction(ActivationFunction):
@@ -87,6 +119,15 @@ class TanhActivationFunction(ActivationFunction):
         out = np.square(p, out=out)
         np.subtract(1, out, out=out)
         return np.multiply(out, self.beta, out=out)
+
+    def to_json(self) -> dict:
+        return {"type": "tanh", "beta": self.beta}
+
+    def __repr__(self) -> str:
+        return f"TanhActivationFunction beta={self.beta}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class LogisticActivationFunction(ActivationFunction):
@@ -109,11 +150,27 @@ class LogisticActivationFunction(ActivationFunction):
         np.multiply(out, p, out=out)
         return np.multiply(out, self.minus_beta_times_two, out=out)
 
+    def to_json(self) -> dict:
+        return {"type": "logistic", "beta": self.minus_beta_times_two / -2}
 
-map = {
+    def __repr__(self) -> str:
+        return f"TanhActivationFunction beta={self.minus_beta_times_two / -2}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+
+activation_function_map = {
     "simple": SimpleActivationFunction,
     "indentity": IdentityActivationFunction,
     "relu": ReluActivationFunction,
     "tanh": TanhActivationFunction,
     "logistic": LogisticActivationFunction
 }
+
+
+def activation_function_from_json(d: dict) -> ActivationFunction:
+    class_type = activation_function_map[d["type"]]
+    if class_type is TanhActivationFunction or LogisticActivationFunction:
+        return class_type(beta=float(d["beta"]))
+    return class_type()

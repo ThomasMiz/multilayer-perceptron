@@ -38,6 +38,12 @@ class RandomWeightsInitializer(WeightsInitializer):
 
         return biases, weights
 
+    def __repr__(self) -> str:
+        return f"RandomWeightInitializer weights_range={self.weights_range} biases_range={self.biases_range} round_decimal_digits_to={self.round_decimal_digits_to}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
 
 class ValuesWeightsInitializer(WeightsInitializer):
     """Initializes weights and biases with predetermined values."""
@@ -64,4 +70,10 @@ class ValuesWeightsInitializer(WeightsInitializer):
             raise ValueError(f"The shape of the weights matrix for layer {layer_number} {self.biases[layer_number].shape} doesn\'t match what the network expected {(prev_layer_size, layer_size)}")
 
         # The user may have specified matrices with integers, this ensures they are properly converted so all operations are float64.
-        return np.asarray(self.biases[layer_number], dtype='float64'), np.asarray(self.weights[layer_number], dtype='float64')
+        return np.asfarray(self.biases[layer_number]), np.asfarray(self.weights[layer_number])
+
+    def __repr__(self) -> str:
+        return f"ValuesWeightInitializer for {len(self.weights)} layers of sizes {[b.shape[0] for b in self.biases]}"
+
+    def __str__(self) -> str:
+        return self.__repr__()

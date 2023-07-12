@@ -1,15 +1,15 @@
 import numpy as np
-from src.activation import ActivationFunction
-from src.utils import add_lists
+from src.activation import ActivationFunction, activation_function_from_json
+from src.utils import add_lists, ndarray_list_from_json, ndarray_list_to_json
 from src.weights_initializer import WeightsInitializer
 
 
 class Network:
     """Represents a multilayer perceptron."""
 
-    def __init__(self, input_size: int, arch: list[tuple[int, ActivationFunction]], weight_initializer: WeightsInitializer) -> None:
+    def __init__(self, input_size: int, arch: list[tuple[int, ActivationFunction]], weight_initializer: (WeightsInitializer | list[np.ndarray])) -> None:
         """
-        Creates a new Network with the specified architechture, represented as a list of tuples where [0] is the amount of neurons and [1] is the
+        Creates a new Network with the specified architecture, represented as a list of tuples where [0] is the amount of neurons and [1] is the
         activation function. All the neurons within a same layer use the same activation function.The first element of the list is the first layer,
         the one that receives the input vector.
         """
@@ -39,12 +39,23 @@ class Network:
         layer (or input vector) and the neurons of the current layer. Each column in the matrix represents the bias and weights for one neuron.
         """
 
-        prev_layer_size = input_size
-        for i in range(self.layer_count):
-            # Initialize weights and biases
-            weights_and_biases = weight_initializer.get_weights(i, self.layer_sizes[i], prev_layer_size)
-            self.layer_weights.append(np.vstack(weights_and_biases))
-            prev_layer_size = self.layer_sizes[i]
+        # Initialization may be done by specifying weight_initializer to a list or a WeightsInitializer. 
+        if isinstance(weight_initializer, list):
+            if len(weight_initializer) != self.layer_count:
+                raise ValueError('Failed to initialize network: amount of weight matrices does not match amount of layers')
+            prev_layer_size = input_size
+            for i in range(self.layer_count):
+                if (prev_layer_size + 1, self.layer_sizes[i]) != weight_initializer[i].shape:
+                    raise ValueError('Failed to initialize network: weights matrices do not match network architecture')
+                prev_layer_size = self.layer_sizes[i]
+            self.layer_weights = weight_initializer
+        else:
+            prev_layer_size = input_size
+            for i in range(self.layer_count):
+                # Initialize weights and biases
+                weights_and_biases = weight_initializer.get_weights(i, self.layer_sizes[i], prev_layer_size)
+                self.layer_weights.append(np.vstack(weights_and_biases))
+                prev_layer_size = self.layer_sizes[i]
 
     def evaluate(self, input: np.ndarray) -> np.ndarray:
         """Calculates this network's output vector for a given input vector."""
@@ -65,3 +76,21 @@ class Network:
 
     def adjust_weights(self, dw_matrix_per_layer: list[np.ndarray]) -> None:
         add_lists(self.layer_weights, dw_matrix_per_layer)
+
+    def to_json(self):
+        return {
+            "architecture": [{"size": self.layer_sizes[i], "activation": self.layer_activations[i].to_json()} for i in range(self.layer_count)],
+            "layer_weights": ndarray_list_to_json(self.layer_weights)
+        }
+
+    def from_json(d: dict):
+        architecture = [(int(x["size"]), activation_function_from_json(x["activation"])) for x in d["architecture"]]
+        layer_weights = ndarray_list_from_json(d["layer_weights"])
+        input_size = layer_weights[0].shape[0] - 1
+        return Network(input_size=input_size, arch=architecture, weight_initializer=layer_weights)
+
+    def __repr__(self) -> str:
+        return f"Network: {self.input_size} inputs, {self.layer_count} layers sizes {self.layer_sizes}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
