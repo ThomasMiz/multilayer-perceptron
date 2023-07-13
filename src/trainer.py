@@ -133,20 +133,22 @@ class NetworkTrainer:
                     self.testset_error_history = []
                 if len(self.testset_error_history) < self.current_epoch:
                     self.testset_error_history.extend([None] * (self.current_epoch - len(self.testset_error_history)))
-            elif len(self.testset_error_history) > self.current_epoch:
-                self.testset_error_history = self.testset_error_history[:self.current_epoch]
+                elif len(self.testset_error_history) > self.current_epoch:
+                    self.testset_error_history = self.testset_error_history[:self.current_epoch]
 
     def __check_update_error(self, dataset_outputs: list[np.ndarray], actual_outputs: list[np.ndarray], best_weights: list[np.ndarray],
                              testset: (np.ndarray | None), testset_outputs: (np.ndarray | None), h_vector_storage: list[np.ndarray], testset_outputs_storage):
         self.current_error = self.error_function.error_for_dataset(dataset_outputs, actual_outputs)
         if self.record_error_history:
             self.error_history.append(self.current_error)
-            if self.testset_error_history is None:
-                print(f"Error at epoch {self.current_epoch - 1}: {self.current_error}")
-            else:
+            if self.testset_error_history is not None:
                 self.current_testset_error = self.__error_for_dataset(testset, testset_outputs, h_vector_storage, testset_outputs_storage)
                 self.testset_error_history.append(self.current_testset_error)
-                print(f"Error at epoch {self.current_epoch - 1}: {self.current_error} with testset error {self.current_testset_error}")
+
+        if self.current_testset_error is None:
+            print(f"Error at epoch {self.current_epoch - 1}: {self.current_error}")
+        else:
+            print(f"Error at epoch {self.current_epoch - 1}: {self.current_error} with testset error {self.current_testset_error}")
 
         # Check if the error is better than the previously known best. If so, remember those as the current best weights found.
         if self.best_error is None or self.current_error < self.best_error:
@@ -206,7 +208,7 @@ class NetworkTrainer:
 
         self.current_weights = self.network.layer_weights
         self.network.layer_weights = best_weights
-        print(f'Training finished with reason: {self.end_reason} after {self.current_epoch} epochs with error {self.current_error}')
+        print(f'Training finished with reason: {self.end_reason} after {self.current_epoch} epochs with best error {self.best_error}')
 
     def to_json(self) -> dict:
         """Serializes this NetworkTrainer to a dict."""
