@@ -40,12 +40,12 @@ for config_name, config in CONFIGURATIONS.items():
     gradient_history = []
     deltax_history = []
     epoch = 0
-    # def apply(self, layer_number: int, learning_date: float, epoch_number: int, dw: np.ndarray) -> np.ndarray:
+
     while epoch < max_epochs and np.abs(x_history[-1] - minimum[0]) > acceptable_error:
         epoch += 1
         optimizer.start_next_epoch(epoch)
         gradient = func_deriv(x)
-        deltax = -optimizer.apply(0, learning_rate, epoch, np.array([gradient]))[0]
+        deltax = -optimizer.apply(0, learning_rate, np.array([gradient]))[0]
         x = x + deltax
         x_history.append(x)
         gradient_history.append(gradient)

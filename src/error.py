@@ -9,12 +9,12 @@ class ErrorFunction(ABC):
     """
 
     @abstractmethod
-    def error_for_single(self, expected_output: np.ndarray, output: np.ndarray) -> float:
+    def error_for_single(self, expected_output: np.ndarray, actual_output: np.ndarray) -> float:
         """Calculates the error for a single output vector from the expected output and actual output."""
         pass
 
     @abstractmethod
-    def error_for_dataset(self, expected_outputs: np.ndarray, outputs: np.ndarray) -> float:
+    def error_for_dataset(self, expected_outputs: list[np.ndarray], actual_outputs: list[np.ndarray]) -> float:
         """Calculates the error for a set of output vectors."""
         pass
 
@@ -22,28 +22,22 @@ class ErrorFunction(ABC):
 class CountNonmatchingErrorFunction(ErrorFunction):
     """An error function that counts how many output vectors do not exactly match their respective expected output vector."""
 
-    def error_for_single(self, expected_output: np.ndarray, output: np.ndarray) -> float:
-        return 1 - np.array_equal(expected_output, output)
+    def error_for_single(self, expected_output: np.ndarray, actual_output: np.ndarray) -> float:
+        return 1 - np.array_equal(expected_output, actual_output)
 
-    def error_for_dataset(self, expected_outputs: np.ndarray, outputs: np.ndarray) -> float:
-        return len(expected_outputs) - np.sum(np.all(np.equal(expected_outputs, outputs), axis=1))
+    def error_for_dataset(self, expected_outputs: list[np.ndarray], actual_outputs: list[np.ndarray]) -> float:
+        return len(expected_outputs) - np.sum(np.all(np.equal(expected_outputs, actual_outputs), axis=1))
 
 
 class CostAverageErrorFunction(ErrorFunction):
-    """An error function that """
+    """An error function that calculates the average of squares of the difference between the expected result and the actual result."""
 
-    def error_for_single(self, expected_output: np.ndarray, output: np.ndarray) -> float:
-        tmp = np.subtract(expected_output, output)
+    def error_for_single(self, expected_output: np.ndarray, actual_output: np.ndarray) -> float:
+        tmp = np.subtract(expected_output, actual_output)
         np.power(tmp, 2, out=tmp)
         return np.average(tmp) * 0.5
 
-    def error_for_dataset(self, expected_outputs: np.ndarray, outputs: np.ndarray) -> float:
-        tmp = (expected_outputs - outputs).sum(axis=1)
+    def error_for_dataset(self, expected_outputs: list[np.ndarray], actual_outputs: list[np.ndarray]) -> float:
+        tmp = np.subtract(expected_outputs, actual_outputs).sum(axis=1)
         np.power(tmp, 2, out=tmp)
         return np.average(tmp) * 0.5
-
-
-map = {
-    'count_nonmatching': CountNonmatchingErrorFunction,
-    'cost_average': CostAverageErrorFunction
-}

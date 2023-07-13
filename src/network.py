@@ -1,4 +1,5 @@
 import numpy as np
+import json
 from src.activation import ActivationFunction, activation_function_from_json
 from src.utils import add_lists, ndarray_list_from_json, ndarray_list_to_json
 from src.weights_initializer import WeightsInitializer
@@ -57,6 +58,20 @@ class Network:
                 self.layer_weights.append(np.vstack(weights_and_biases))
                 prev_layer_size = self.layer_sizes[i]
 
+    @property
+    def output_size(self):
+        return self.layer_sizes[-1]
+
+    def evaluate_with_storage(self, input: np.ndarray, h_vectors_out: list[np.ndarray], state_vectors_out: list[np.ndarray]) -> np.ndarray:
+        """Calculates this network's output vector for a given input vector, storing results in the provided numpy vectors. Skips checks."""
+        prev_layer_output = input
+        for i in range(self.layer_count):
+            h_vector = np.matmul(prev_layer_output, self.layer_weights[i][1:], out=h_vectors_out[i])
+            np.add(h_vector, self.layer_weights[i][0], out=h_vector)
+            prev_layer_output = self.layer_activations[i].primary(h_vector, out=state_vectors_out[i])
+
+        return prev_layer_output
+
     def evaluate(self, input: np.ndarray) -> np.ndarray:
         """Calculates this network's output vector for a given input vector."""
         if input.ndim != 1:
@@ -67,10 +82,10 @@ class Network:
         # Feedforward
         prev_layer_output = input
         for i in range(self.layer_count):
-            # We prepend the input with a 1 to facilitate matrix multiplication, since the first row of the matrix are the biases.
+            # layer_output = activation.primary(np.matmul(prev_layer_output, layer_weights)) + layer_biases
             h_vector = np.matmul(prev_layer_output, self.layer_weights[i][1:])
             np.add(h_vector, self.layer_weights[i][0], out=h_vector)
-            prev_layer_output = self.layer_activations[i].primary(h_vector)
+            prev_layer_output = self.layer_activations[i].primary(h_vector, out=h_vector)
 
         return prev_layer_output
 
@@ -82,6 +97,10 @@ class Network:
             "architecture": [{"size": self.layer_sizes[i], "activation": self.layer_activations[i].to_json()} for i in range(self.layer_count)],
             "layer_weights": ndarray_list_to_json(self.layer_weights)
         }
+
+    def save_to_file(self, file: str, indent: bool=False):
+        with open(file, 'w') as f:
+            json.dump(self.to_json(), f, indent=(4 if indent else None))
 
     def from_json(d: dict):
         architecture = [(int(x["size"]), activation_function_from_json(x["activation"])) for x in d["architecture"]]
