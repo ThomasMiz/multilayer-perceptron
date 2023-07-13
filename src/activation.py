@@ -23,7 +23,7 @@ class ActivationFunction(ABC):
 
 class SimpleActivationFunction(ActivationFunction):
     """An activation function that returns 1 if x >= 0, -1 otherwise."""
-    range = (-1, 1)
+    range = (-1.0, 1.0)
 
     def __init__(self) -> None:
         pass
@@ -32,9 +32,9 @@ class SimpleActivationFunction(ActivationFunction):
         # (x >= 0) * 2 - 1
         if out is None:
             out = np.zeros_like(x)
-        np.greater_equal(x, 0, out=out)
-        np.multiply(out, 2, out=out)
-        return np.subtract(out, 1, out=out)
+        np.greater_equal(x, 0.0, out=out)
+        np.multiply(out, 2.0, out=out)
+        return np.subtract(out, 1.0, out=out)
 
     def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
         if out is None:
@@ -64,7 +64,7 @@ class IdentityActivationFunction(ActivationFunction):
     def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
         if out is None:
             return np.ones_like(p)
-        out.fill(1)
+        out.fill(1.0)
         return out
 
     def to_json(self) -> dict:
@@ -84,13 +84,13 @@ class ReluActivationFunction(ActivationFunction):
         pass
 
     def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        return np.maximum(x, 0, out=out)
+        return np.maximum(x, 0.0, out=out)
 
     def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
         # (x >= 0) * 1
         if out is None:
             out = np.zeros_like(x)
-        return np.greater_equal(x, 0, out=out)
+        return np.greater_equal(x, 0.0, out=out)
 
     def to_json(self) -> dict:
         return {"type": "relu"}
@@ -104,7 +104,7 @@ class ReluActivationFunction(ActivationFunction):
 
 class TanhActivationFunction(ActivationFunction):
     """An activation function whose image is (-1, 1)."""
-    range = (-1, 1)
+    range = (-1.0, 1.0)
 
     def __init__(self, beta: float=1.0) -> None:
         self.beta = beta
@@ -132,29 +132,29 @@ class TanhActivationFunction(ActivationFunction):
 
 class LogisticActivationFunction(ActivationFunction):
     """A logistic function whose image is (0, 1)."""
-    range = (0, 1)
+    range = (0.0, 1.0)
 
     def __init__(self, beta: float=0.5) -> None:
-        self.minus_beta_times_two = -2 * beta
+        self.minus_beta_times_two = -2.0 * beta
 
     def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
         # 1 / (1 + np.exp(self.minus_beta_times_two * x))
         out = np.multiply(x, self.minus_beta_times_two, out=out)
         np.exp(out, out=out)
-        np.add(out, 1, out=out)
+        np.add(out, 1.0, out=out)
         return np.divide(1, out, out=out)
 
     def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
         # self.minus_beta_times_two * p * (p - 1)
-        out = np.subtract(p, 1, out=out)
+        out = np.subtract(p, 1.0, out=out)
         np.multiply(out, p, out=out)
         return np.multiply(out, self.minus_beta_times_two, out=out)
 
     def to_json(self) -> dict:
-        return {"type": "logistic", "beta": self.minus_beta_times_two / -2}
+        return {"type": "logistic", "beta": self.minus_beta_times_two / -2.0}
 
     def __repr__(self) -> str:
-        return f"TanhActivationFunction beta={self.minus_beta_times_two / -2}"
+        return f"TanhActivationFunction beta={self.minus_beta_times_two / -2.0}"
 
     def __str__(self) -> str:
         return self.__repr__()

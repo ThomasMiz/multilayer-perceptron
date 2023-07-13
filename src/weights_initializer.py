@@ -25,8 +25,8 @@ class RandomWeightsInitializer(WeightsInitializer):
         random values to n decimal digits (otherwise disabled by default).
         """
 
-        self.weights_range = weights_range if weights_range is not None else (range if range is not None else (-1, 1))
-        self.biases_range = biases_range if biases_range is not None else (range if range is not None else (-1, 1))
+        self.weights_range = weights_range if weights_range is not None else (range if range is not None else (-1.0, 1.0))
+        self.biases_range = biases_range if biases_range is not None else (range if range is not None else (-1.0, 1.0))
         self.round_decimal_digits_to = round_decimal_digits_to
 
     def get_weights(self, layer_number: int, layer_size: int, prev_layer_size: int) -> tuple[np.ndarray, np.ndarray]:

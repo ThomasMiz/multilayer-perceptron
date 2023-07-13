@@ -26,6 +26,9 @@ class NetworkTrainer:
         self.error_history = None
         """The error history, if error history is being recorded. error_history[i] contains the error after epoch i."""
 
+        self.testset_error_history = None
+        """The error history for the testset, if error history is being recorded. testset_error_history[i] contains the testset error after epoch i."""
+
         self.current_weights = None
         """
         During training, the current weights are stored in the Network object. Otherwise, the current weights are stored in this variable
@@ -34,6 +37,9 @@ class NetworkTrainer:
 
         self.current_error = None
         """The error value calculated at the last epoch."""
+
+        self.current_testset_error = None
+        """The testset error value calculated at the last epoch."""
 
         self.best_error = None
         """The lower error value calculated for an epoch so far."""
@@ -94,8 +100,7 @@ class NetworkTrainer:
             np.copyto(outputs_storage[i], out)
         return self.error_function.error_for_dataset(dataset_outputs, outputs_storage)
 
-    def __pretrain_check(self, dataset: list[np.ndarray], dataset_outputs: list[np.ndarray], testset: (np.ndarray | None), testset_outputs: (np.ndarray | None),
-                        h_vector_storage: list[np.ndarray], outputs_storage: list[np.ndarray]):
+    def __pretrain_check(self, dataset: list[np.ndarray], dataset_outputs: list[np.ndarray], testset: (np.ndarray | None), testset_outputs: (np.ndarray | None)):
         """Performs some pre-training checks in case some dumbass ((me)) passes in invalid values."""
         if dataset is None or dataset_outputs is None:
             raise ValueError('dataset and dataset_outputs may not be None')
@@ -106,10 +111,8 @@ class NetworkTrainer:
             raise ValueError('The lengths of dataset and dataset_output arrays must match')
 
         if testset is not None:
-            if testset.ndim != 2 or testset_outputs.ndim != 2:
-                raise ValueError('The testset and its outputs must have exactly two dimentions')
-            if testset.shape[0] != testset_outputs.shape[0]:
-                raise ValueError('The length of testset must match the length of testset_outputs')
+            if len(testset) != len(testset_outputs):
+                raise ValueError('The lengths of testset and testset_output arrays must match')
 
         # In case record_error_history was changed, we create and extend the error_history array up to the current epoch.
         # This is all done to ensure self.error_history[i] contains the error value for epoch number i, even if any values were modified.
@@ -125,11 +128,25 @@ class NetworkTrainer:
                 # If error_history is longer than it should be, cut off excess elements.
                 self.error_history = self.error_history[:self.current_epoch]
 
-    def __check_update_error(self, dataset_outputs: list[np.ndarray], actual_outputs: list[np.ndarray], best_weights: list[np.ndarray]):
+            if testset is not None:
+                if self.testset_error_history is None:
+                    self.testset_error_history = []
+                if len(self.testset_error_history) < self.current_epoch:
+                    self.testset_error_history.extend([None] * (self.current_epoch - len(self.testset_error_history)))
+            elif len(self.testset_error_history) > self.current_epoch:
+                self.testset_error_history = self.testset_error_history[:self.current_epoch]
+
+    def __check_update_error(self, dataset_outputs: list[np.ndarray], actual_outputs: list[np.ndarray], best_weights: list[np.ndarray],
+                             testset: (np.ndarray | None), testset_outputs: (np.ndarray | None), h_vector_storage: list[np.ndarray], testset_outputs_storage):
         self.current_error = self.error_function.error_for_dataset(dataset_outputs, actual_outputs)
-        print(f"Error at epoch {self.current_epoch - 1}: {self.current_error}")
         if self.record_error_history:
             self.error_history.append(self.current_error)
+            if self.testset_error_history is None:
+                print(f"Error at epoch {self.current_epoch - 1}: {self.current_error}")
+            else:
+                self.current_testset_error = self.__error_for_dataset(testset, testset_outputs, h_vector_storage, testset_outputs_storage)
+                self.testset_error_history.append(self.current_testset_error)
+                print(f"Error at epoch {self.current_epoch - 1}: {self.current_error} with testset error {self.current_testset_error}")
 
         # Check if the error is better than the previously known best. If so, remember those as the current best weights found.
         if self.best_error is None or self.current_error < self.best_error:
@@ -142,11 +159,13 @@ class NetworkTrainer:
         h_vector_storage = [np.zeros(s) for s in self.network.layer_sizes]
         s_vector_storage = [np.zeros(s) for s in self.network.layer_sizes]
         states_storage = [None] + [np.zeros(s) for s in self.network.layer_sizes]
-        outputs_storage = [np.zeros(self.network.output_size) for _ in dataset]
+        outputs_backing_storage = [np.zeros(self.network.output_size) for _ in range(max(len(dataset), 0 if testset is None else len(testset)))]
+        outputs_storage = outputs_backing_storage[:len(dataset)]
+        testset_outputs_storage = None if testset is None else outputs_backing_storage[:len(testset)]
         dw_matrices_storage = [np.zeros_like(w) for w in self.network.layer_weights]
         weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
 
-        self.__pretrain_check(dataset, dataset_outputs, testset, testset_outputs, h_vector_storage, outputs_storage)
+        self.__pretrain_check(dataset, dataset_outputs, testset, testset_outputs)
 
         best_weights = self.network.layer_weights
         if self.best_error is None:
@@ -172,7 +191,7 @@ class NetworkTrainer:
 
             # Calculate the error based on the outputs calculated while finding weight adjustments for this epoch. Since weights haven't been adjusted yet,
             # this is actually the error for the previous epoch. This is faster than calculating all the outputs again after adjusting the weights.
-            self.__check_update_error(dataset_outputs, outputs_storage, best_weights)
+            self.__check_update_error(dataset_outputs, outputs_storage, best_weights, testset, testset_outputs, h_vector_storage, testset_outputs_storage)
 
             self.network.adjust_weights(weights_adjustments)
 
@@ -183,7 +202,7 @@ class NetworkTrainer:
 
         # Since errors for each epoch are calculated at the same time as the weight updates for the next epoch, we calculate the error for
         # the final epoch outside the loop.
-        self.__check_update_error(dataset_outputs, outputs_storage, best_weights)
+        self.__check_update_error(dataset_outputs, outputs_storage, best_weights, testset, testset_outputs, h_vector_storage, testset_outputs_storage)
 
         self.current_weights = self.network.layer_weights
         self.network.layer_weights = best_weights
@@ -204,6 +223,8 @@ class NetworkTrainer:
 
         if self.current_error is not None:
             result["current_error"] = float(self.current_error)
+        if self.current_testset_error is not None:
+            result["current_testset_error"] = float(self.current_testset_error)
         if self.best_error is not None:
             result["best_error"] = float(self.best_error)
         if self.end_reason is not None:
@@ -212,6 +233,10 @@ class NetworkTrainer:
             for i in range(len(self.error_history)):
                 self.error_history[i] = float(self.error_history[i])
             result["error_history"] = self.error_history
+        if self.testset_error_history is not None:
+            for i in range(len(self.testset_error_history)):
+                self.testset_error_history[i] = float(self.testset_error_history[i])
+            result["testset_error_history"] = self.testset_error_history
         if self.current_weights is not None:
             result["current_weights"] = ndarray_list_to_json(self.current_weights)
 
@@ -234,9 +259,11 @@ class NetworkTrainer:
 
         t.current_epoch = int(d["current_epoch"]) if "current_epoch" in d else 0
         t.current_error = float(d["current_error"]) if "current_error" in d else None
+        t.current_testset_error = float(d["current_testset_error"]) if "current_testset_error" in d else None
         t.best_error = float(d["best_error"]) if "best_error" in d else None
         t.end_reason = d["end_reason"] if "end_reason" in d else None
         t.error_history = d["error_history"] if "error_history" in d else None
+        t.testset_error_history = d["testset_error_history"] if "testset_error_history" in d else None
         t.current_weights = ndarray_list_from_json(d["current_weights"]) if "current_weights" in d else None
         return t
 
