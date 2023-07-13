@@ -1,6 +1,8 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from src.network import Network
+from src.utils import ndarray_list_from_json, ndarray_list_to_json
+
 
 class Optimizer(ABC):
     """
@@ -21,6 +23,11 @@ class Optimizer(ABC):
         """Calculates the delta-weights matrix to apply for a layer and returns it."""
         pass
 
+    @abstractmethod
+    def to_json(self) -> dict:
+        """Serializes this Optimizer to a dict."""
+        pass
+
 
 class GradientDescentOptimizer(Optimizer):
     """The simplest optimizer, which runs backpropagation without any additional terms."""
@@ -28,12 +35,21 @@ class GradientDescentOptimizer(Optimizer):
     def __init__(self) -> None:
         pass
 
-    def parse(config=None):
-        pass
-
     def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
         # learning_rate * dw
         return np.multiply(dw, learning_rate, out=dw)
+
+    def to_json(self) -> dict:
+        return {"type": "gradient"}
+
+    def from_json(d: dict) -> Optimizer:
+        return GradientDescentOptimizer()
+
+    def __repr__(self) -> str:
+        return f"GradientDescentOptimizer"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class MomentumOptimizer(Optimizer):
@@ -55,6 +71,20 @@ class MomentumOptimizer(Optimizer):
         np.add(dw, previous, out=dw)
         np.copyto(previous, dw)
         return dw
+
+    def to_json(self) -> dict:
+        return {"type": "momentum", "alpha": self.alpha, "previous_dw": ndarray_list_to_json(self.previous_dw)}
+
+    def from_json(d: dict) -> Optimizer:
+        r = MomentumOptimizer(alpha=float(d["alpha"]))
+        r.previous_dw = ndarray_list_from_json(d["previous_dw"])
+        return r
+
+    def __repr__(self) -> str:
+        return f"MomentumOptimizer alpha={self.alpha}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class RMSPropOptimizer(Optimizer):
@@ -87,6 +117,20 @@ class RMSPropOptimizer(Optimizer):
         np.sqrt(tmp, out=tmp)
         np.divide(learning_rate, tmp, out=tmp)
         return np.multiply(tmp, dw, out=dw)
+
+    def to_json(self) -> dict:
+        return {"type": "rmsprop", "gamma": self.gamma, "epsilon": self.epsilon, "previous_s_matrix": ndarray_list_to_json(self.previous_s_matrix)}
+
+    def from_json(d: dict) -> Optimizer:
+        r = RMSPropOptimizer(gamma=float(d["gamma"]), epsilon=float(d["epsilon"]))
+        r.previous_s_matrix = ndarray_list_from_json(d["previous_s_matrix"])
+        return r
+
+    def __repr__(self) -> str:
+        return f"RMSPropOptimizer gamma={self.gamma} epsilon={self.epsilon}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class AdamOptimizer(Optimizer):
@@ -140,3 +184,31 @@ class AdamOptimizer(Optimizer):
         np.add(tmp, self.epsilon, out=tmp)
         np.multiply(dw, learning_rate, out=dw)
         return np.divide(dw, tmp, out=dw)
+
+    def to_json(self) -> dict:
+        return {"type": "adam", "beta1": self.beta1, "beta2": self.beta2, "epsilon": self.epsilon, "m_per_layer": ndarray_list_to_json(self.m_per_layer), "v_per_layer": ndarray_list_to_json(self.v_per_layer)}
+
+    def from_json(d: dict) -> Optimizer:
+        r = AdamOptimizer(beta1=float(d["beta1"]), beta2=float(d["beta2"]), epsilon=float(d["epsilon"]))
+        r.m_per_layer = ndarray_list_from_json(d["m_per_layer"])
+        r.v_per_layer = ndarray_list_from_json(d["v_per_layer"])
+        return r
+
+    def __repr__(self) -> str:
+        return f"AdamOptimizer beta1={self.beta1} beta2={self.beta2} epsilon={self.epsilon}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+
+optimizer_map = {
+    "gradient": GradientDescentOptimizer,
+    "momentum": MomentumOptimizer,
+    "rmsprop": RMSPropOptimizer,
+    "adam": AdamOptimizer
+}
+
+
+def optimizer_from_json(d: dict) -> Optimizer:
+    class_type = optimizer_map[d["type"]]
+    return class_type.from_json(d)

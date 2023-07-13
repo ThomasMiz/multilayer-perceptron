@@ -1,8 +1,9 @@
 import numpy as np
+import json
 from src.network import Network
-from src.error import ErrorFunction
-from src.utils import add_lists
-from src.optimizer import Optimizer
+from src.error import ErrorFunction, error_function_from_json
+from src.optimizer import Optimizer, optimizer_from_json
+from src.utils import add_lists, ndarray_list_from_json, ndarray_list_to_json
 
 
 class NetworkTrainer:
@@ -22,10 +23,10 @@ class NetworkTrainer:
         self.record_error_history = record_error_history
         """Whether to remember the error values calculated at the end of each epoch."""
 
-        self.error_history = [] if record_error_history else None
+        self.error_history = None
         """The error history, if error history is being recorded. error_history[i] contains the error after epoch i."""
 
-        self.current_weights = [np.copy(w) for w in network.layer_weights]
+        self.current_weights = None
         """
         During training, the current weights are stored in the Network object. Otherwise, the current weights are stored in this variable
         and the network instead contains the best weights so far.
@@ -151,6 +152,8 @@ class NetworkTrainer:
         if self.best_error is None:
             self.best_error = self.__error_for_dataset(dataset, dataset_outputs, h_vector_storage, outputs_storage)
 
+        if self.current_weights is None:
+            self.current_weights = [np.copy(w) for w in self.network.layer_weights]
         self.network.layer_weights = self.current_weights
 
         self.end_reason = None
@@ -185,3 +188,58 @@ class NetworkTrainer:
         self.current_weights = self.network.layer_weights
         self.network.layer_weights = best_weights
         print(f'Training finished with reason: {self.end_reason} after {self.current_epoch} epochs with error {self.current_error}')
+
+    def to_json(self) -> dict:
+        """Serializes this NetworkTrainer to a dict."""
+        result = {
+            "network": self.network.to_json(),
+            "learning_rate": float(self.learning_rate),
+            "error_function": self.error_function.to_json(),
+            "optimizer": self.optimizer.to_json(),
+            "max_epochs": int(self.max_epochs),
+            "acceptable_error": float(self.acceptable_error),
+            "record_error_history": float(self.record_error_history),
+            "current_epoch": int(self.current_epoch)
+        }
+
+        if self.current_error is not None:
+            result["current_error"] = float(self.current_error)
+        if self.best_error is not None:
+            result["best_error"] = float(self.best_error)
+        if self.end_reason is not None:
+            result["end_reason"] = self.end_reason
+        if self.error_history is not None:
+            for i in range(len(self.error_history)):
+                self.error_history[i] = float(self.error_history[i])
+            result["error_history"] = self.error_history
+        if self.current_weights is not None:
+            result["current_weights"] = ndarray_list_to_json(self.current_weights)
+
+        return result
+
+    def save_to_file(self, file: str, indent: bool=False):
+        with open(file, 'w') as f:
+            json.dump(self.to_json(), f, indent=(4 if indent else None))
+
+    def from_json(d: dict):
+        t = NetworkTrainer(
+            network=Network.from_json(d["network"]),
+            learning_rate=float(d["learning_rate"]),
+            error_function=error_function_from_json(d["error_function"]),
+            optimizer=optimizer_from_json(d["optimizer"]),
+            max_epochs=(int(d["max_epochs"]) if "max_epochs" in d else None),
+            acceptable_error=(float(d["acceptable_error"]) if "acceptable_error" in d else None),
+            record_error_history=bool(d["record_error_history"])
+        )
+
+        t.current_epoch = int(d["current_epoch"]) if "current_epoch" in d else 0
+        t.current_error = float(d["current_error"]) if "current_error" in d else None
+        t.best_error = float(d["best_error"]) if "best_error" in d else None
+        t.end_reason = d["end_reason"] if "end_reason" in d else None
+        t.error_history = d["error_history"] if "error_history" in d else None
+        t.current_weights = ndarray_list_from_json(d["current_weights"]) if "current_weights" in d else None
+        return t
+
+    def from_file(file: str):
+        with open(file, 'r') as f:
+            return NetworkTrainer.from_json(json.load(f))

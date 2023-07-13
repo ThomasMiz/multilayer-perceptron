@@ -18,6 +18,11 @@ class ErrorFunction(ABC):
         """Calculates the error for a set of output vectors."""
         pass
 
+    @abstractmethod
+    def to_json(self) -> dict:
+        """Serializes this ErrorFunction to a dict."""
+        pass
+
 
 class CountNonmatchingErrorFunction(ErrorFunction):
     """An error function that counts how many output vectors do not exactly match their respective expected output vector."""
@@ -27,6 +32,9 @@ class CountNonmatchingErrorFunction(ErrorFunction):
 
     def error_for_dataset(self, expected_outputs: list[np.ndarray], actual_outputs: list[np.ndarray]) -> float:
         return len(expected_outputs) - np.sum(np.all(np.equal(expected_outputs, actual_outputs), axis=1))
+
+    def to_json(self) -> dict:
+        return {"type": "count_nonmatching"}
 
 
 class CostAverageErrorFunction(ErrorFunction):
@@ -41,3 +49,17 @@ class CostAverageErrorFunction(ErrorFunction):
         tmp = np.subtract(expected_outputs, actual_outputs).sum(axis=1)
         np.power(tmp, 2, out=tmp)
         return np.average(tmp) * 0.5
+
+    def to_json(self) -> dict:
+        return {"type": "cost_average"}
+
+
+error_function_map = {
+    'count_nonmatching': CountNonmatchingErrorFunction,
+    'cost_average': CostAverageErrorFunction
+}
+
+
+def error_function_from_json(d: dict) -> ErrorFunction:
+    class_type = error_function_map[d["type"]]
+    return class_type()

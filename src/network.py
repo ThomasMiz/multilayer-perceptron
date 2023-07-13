@@ -108,6 +108,10 @@ class Network:
         input_size = layer_weights[0].shape[0] - 1
         return Network(input_size=input_size, arch=architecture, weight_initializer=layer_weights)
 
+    def from_file(file: str):
+        with open(file, 'r') as f:
+            return Network.from_json(json.load(f))
+
     def __repr__(self) -> str:
         return f"Network: {self.input_size} inputs, {self.layer_count} layers sizes {self.layer_sizes}"
 

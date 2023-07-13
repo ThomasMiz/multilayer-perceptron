@@ -171,6 +171,6 @@ activation_function_map = {
 
 def activation_function_from_json(d: dict) -> ActivationFunction:
     class_type = activation_function_map[d["type"]]
-    if class_type is TanhActivationFunction or LogisticActivationFunction:
+    if class_type is TanhActivationFunction or class_type is LogisticActivationFunction:
         return class_type(beta=float(d["beta"]))
     return class_type()
