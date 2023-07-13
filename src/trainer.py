@@ -1,7 +1,7 @@
 import numpy as np
 from src.network import Network
 from src.error import ErrorFunction
-from src.utils import columnarize, add_lists
+from src.utils import add_lists
 from src.optimizer import Optimizer
 
 
@@ -45,12 +45,8 @@ class NetworkTrainer:
 
         self.optimizer.initialize(network)
 
-    def __evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray, h_vector_storage: list[np.ndarray], states_storage: list[np.ndarray]) -> list[np.ndarray]:
-        if input.ndim != 1:
-            raise ValueError("The input must have only 1 dimention")
-        if len(input) != self.network.input_size:
-            raise ValueError("The input size must match the network's input size")
-
+    def __evaluate_and_adjust(self, input: np.ndarray, expected_output: np.ndarray, h_vector_storage: list[np.ndarray],
+                              s_vector_storage: list[np.ndarray], states_storage: list[np.ndarray], dw_matrices_storage: list[np.ndarray]):
         # Feedforward
         states_storage[0] = input
         for i in range(self.network.layer_count):
@@ -64,24 +60,31 @@ class NetworkTrainer:
             activation.primary(h_vector, out=states_storage[i + 1])
 
         # Backpropagation
-        s_vector_per_layer = [None] * self.network.layer_count
-
         # For last layer
+        # s_vector_per_layer[-1] = (expected_output - states_storage[-1]) * activation.derivative(states_storage[-1], h_vector)
         activation = self.network.layer_activations[-1]
-        s_vector_per_layer[-1] = (expected_output - states_storage[-1]) * activation.derivative(states_storage[-1], h_vector_storage[-1])
+        h_vector = h_vector_storage[-1]
+        s_vector = s_vector_storage[-1]
+        activation.derivative(states_storage[-1], h_vector, out=h_vector)
+        np.subtract(expected_output, states_storage[-1], out=s_vector)
+        np.multiply(s_vector, h_vector, out=s_vector)
 
         # For inner layers
         for i in range(self.network.layer_count - 2, -1, -1):
             weights = self.network.layer_weights[i + 1]
             activation = self.network.layer_activations[i]
-            s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], weights[1:].T) * activation.derivative(states_storage[i + 1], h_vector_storage[i])
+            # s_vector_per_layer[i] = np.matmul(s_vector_per_layer[i + 1], weights[1:].T) * activation.derivative(states_storage[i + 1], h_vector)
+            h_vector = h_vector_storage[i]
+            s_vector = s_vector_storage[i]
+            np.matmul(s_vector_storage[i + 1], weights[1:].T, out=s_vector)
+            activation.derivative(states_storage[i + 1], h_vector, out=h_vector)
+            np.multiply(s_vector, h_vector, out=s_vector)
 
         # Calculate delta weights matrices
-        dw_matrix_per_layer = [None] * self.network.layer_count
         for i in range(self.network.layer_count):
-            dw_matrix_per_layer[i] = columnarize(self.optimizer.apply(i, self.learning_rate, np.concatenate((np.ones(1), states_storage[i]))[:, None] * s_vector_per_layer[i]))
-
-        return dw_matrix_per_layer
+            np.multiply(states_storage[i][:, None], s_vector_storage[i], out=dw_matrices_storage[i][1:])
+            np.copyto(dw_matrices_storage[i][0], s_vector_storage[i])
+            dw_matrices_storage[i] = self.optimizer.apply(i, self.learning_rate, dw_matrices_storage[i])
 
     def __error_for_dataset(self, dataset: list[np.ndarray], dataset_outputs: list[np.ndarray], h_vector_storage: list[np.ndarray], outputs_storage: list[np.ndarray]) -> float:
         """Calculates the error for a dataset."""
@@ -134,9 +137,13 @@ class NetworkTrainer:
             self.best_error = self.current_error
 
     def train(self, dataset: list[np.ndarray], dataset_outputs: list[np.ndarray], testset: (np.ndarray | None)=None, testset_outputs: (np.ndarray | None)=None):
+        # Calculation variables are stored in these vectors as to reuse memory. Otherwise numpy will allocate a new vector/matrix on each operation.
         h_vector_storage = [np.zeros(s) for s in self.network.layer_sizes]
+        s_vector_storage = [np.zeros(s) for s in self.network.layer_sizes]
         states_storage = [None] + [np.zeros(s) for s in self.network.layer_sizes]
         outputs_storage = [np.zeros(self.network.output_size) for _ in dataset]
+        dw_matrices_storage = [np.zeros_like(w) for w in self.network.layer_weights]
+        weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
 
         self.__pretrain_check(dataset, dataset_outputs, testset, testset_outputs, h_vector_storage, outputs_storage)
 
@@ -145,7 +152,6 @@ class NetworkTrainer:
             self.best_error = self.__error_for_dataset(dataset, dataset_outputs, h_vector_storage, outputs_storage)
 
         self.network.layer_weights = self.current_weights
-        weights_adjustments = [np.zeros_like(w) for w in self.network.layer_weights]
 
         self.end_reason = None
         while (self.end_reason is None):
@@ -157,7 +163,8 @@ class NetworkTrainer:
 
             # Iterate through the dataset and calculate weights adjustments for each element.
             for i in range(len(dataset)):
-                add_lists(weights_adjustments, self.__evaluate_and_adjust(dataset[i], dataset_outputs[i], h_vector_storage, states_storage))
+                self.__evaluate_and_adjust(dataset[i], dataset_outputs[i], h_vector_storage, s_vector_storage, states_storage, dw_matrices_storage)
+                add_lists(weights_adjustments, dw_matrices_storage)
                 np.copyto(outputs_storage[i], states_storage[-1])
 
             # Calculate the error based on the outputs calculated while finding weight adjustments for this epoch. Since weights haven't been adjusted yet,
