@@ -6,12 +6,12 @@ class ActivationFunction(ABC):
     """Represents a neuron activation function. The methods of this class must be able to operate in vector form."""
 
     @abstractmethod
-    def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
+    def primary(self, x: np.ndarray) -> np.ndarray:
         """Used to transform the output of a perceptron."""
         pass
 
     @abstractmethod
-    def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
         """Used to multiply the delta_w of a perceptron while training. Receives p, the value of primary(x), and x."""
         pass
 
@@ -28,19 +28,11 @@ class SimpleActivationFunction(ActivationFunction):
     def __init__(self) -> None:
         pass
 
-    def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        # (x >= 0) * 2 - 1
-        if out is None:
-            out = np.zeros_like(x)
-        np.greater_equal(x, 0.0, out=out)
-        np.multiply(out, 2.0, out=out)
-        return np.subtract(out, 1.0, out=out)
+    def primary(self, x: np.ndarray) -> np.ndarray:
+        return (x >= 0) * 2.0 - 1.0
 
-    def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        if out is None:
-            return np.ones_like(p)
-        out.fill(1)
-        return out
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return np.ones_like(p)
 
     def to_json(self) -> dict:
         return {"type": "simple"}
@@ -58,14 +50,11 @@ class IdentityActivationFunction(ActivationFunction):
     def __init__(self) -> None:
         pass
 
-    def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
+    def primary(self, x: np.ndarray) -> np.ndarray:
         return x
 
-    def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        if out is None:
-            return np.ones_like(p)
-        out.fill(1.0)
-        return out
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return np.ones_like(p)
 
     def to_json(self) -> dict:
         return {"type": "identity"}
@@ -83,14 +72,11 @@ class ReluActivationFunction(ActivationFunction):
     def __init__(self) -> None:
         pass
 
-    def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        return np.maximum(x, 0.0, out=out)
+    def primary(self, x: np.ndarray) -> np.ndarray:
+        return np.maximum(x, 0.0)
 
-    def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        # (x >= 0) * 1
-        if out is None:
-            out = np.zeros_like(x)
-        return np.greater_equal(x, 0.0, out=out)
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return np.asfarray(x >= 0.0)
 
     def to_json(self) -> dict:
         return {"type": "relu"}
@@ -109,16 +95,11 @@ class TanhActivationFunction(ActivationFunction):
     def __init__(self, beta: float=1.0) -> None:
         self.beta = beta
 
-    def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        # np.tanh(self.beta * x)
-        out = np.multiply(x, self.beta, out=out)
-        return np.tanh(out, out=out)
+    def primary(self, x: np.ndarray) -> np.ndarray:
+        return np.tanh(self.beta * x)
 
-    def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        # self.beta * (1 - p*p)
-        out = np.square(p, out=out)
-        np.subtract(1, out, out=out)
-        return np.multiply(out, self.beta, out=out)
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return self.beta * (1.0 - p*p)
 
     def to_json(self) -> dict:
         return {"type": "tanh", "beta": self.beta}
@@ -137,18 +118,11 @@ class LogisticActivationFunction(ActivationFunction):
     def __init__(self, beta: float=0.5) -> None:
         self.minus_beta_times_two = -2.0 * beta
 
-    def primary(self, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        # 1 / (1 + np.exp(self.minus_beta_times_two * x))
-        out = np.multiply(x, self.minus_beta_times_two, out=out)
-        np.exp(out, out=out)
-        np.add(out, 1.0, out=out)
-        return np.divide(1, out, out=out)
+    def primary(self, x: np.ndarray) -> np.ndarray:
+        return 1.0 / (1.0 + np.exp(self.minus_beta_times_two * x))
 
-    def derivative(self, p: np.ndarray, x: np.ndarray, out: np.ndarray=None) -> np.ndarray:
-        # self.minus_beta_times_two * p * (p - 1)
-        out = np.subtract(p, 1.0, out=out)
-        np.multiply(out, p, out=out)
-        return np.multiply(out, self.minus_beta_times_two, out=out)
+    def derivative(self, p: np.ndarray, x: np.ndarray) -> np.ndarray:
+        return self.minus_beta_times_two * p * (p - 1.0)
 
     def to_json(self) -> dict:
         return {"type": "logistic", "beta": self.minus_beta_times_two / -2.0}

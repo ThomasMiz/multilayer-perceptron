@@ -10,7 +10,7 @@ def columnarize(x: np.ndarray):
 def add_lists(x: list, y: list):
     """For each element in x, adds the corresponding element in y. The result is stored in-place in x."""
     for i in range(len(x)):
-        np.add(x[i], y[i], out=x[i])
+        x[i] += y[i]
 
 
 def ndarray_to_json(x: np.ndarray) -> dict:

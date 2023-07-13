@@ -62,16 +62,6 @@ class Network:
     def output_size(self):
         return self.layer_sizes[-1]
 
-    def evaluate_with_storage(self, input: np.ndarray, h_vectors_out: list[np.ndarray], state_vectors_out: list[np.ndarray]) -> np.ndarray:
-        """Calculates this network's output vector for a given input vector, storing results in the provided numpy vectors. Skips checks."""
-        prev_layer_output = input
-        for i in range(self.layer_count):
-            h_vector = np.matmul(prev_layer_output, self.layer_weights[i][1:], out=h_vectors_out[i])
-            np.add(h_vector, self.layer_weights[i][0], out=h_vector)
-            prev_layer_output = self.layer_activations[i].primary(h_vector, out=state_vectors_out[i])
-
-        return prev_layer_output
-
     def evaluate(self, input: np.ndarray) -> np.ndarray:
         """Calculates this network's output vector for a given input vector."""
         if input.ndim != 1:
@@ -83,9 +73,8 @@ class Network:
         prev_layer_output = input
         for i in range(self.layer_count):
             # layer_output = activation.primary(np.matmul(prev_layer_output, layer_weights)) + layer_biases
-            h_vector = np.matmul(prev_layer_output, self.layer_weights[i][1:])
-            np.add(h_vector, self.layer_weights[i][0], out=h_vector)
-            prev_layer_output = self.layer_activations[i].primary(h_vector, out=h_vector)
+            h_vector = np.matmul(prev_layer_output, self.layer_weights[i][1:]) + self.layer_weights[i][0]
+            prev_layer_output = self.layer_activations[i].primary(h_vector)
 
         return prev_layer_output
 

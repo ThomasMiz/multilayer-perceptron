@@ -25,16 +25,16 @@ class RandomWeightsInitializer(WeightsInitializer):
         random values to n decimal digits (otherwise disabled by default).
         """
 
-        self.weights_range = weights_range if weights_range is not None else (range if range is not None else (-1.0, 1.0))
-        self.biases_range = biases_range if biases_range is not None else (range if range is not None else (-1.0, 1.0))
+        self.weights_range = weights_range if weights_range is not None else (range if range is not None else (-1, 1))
+        self.biases_range = biases_range if biases_range is not None else (range if range is not None else (-1, 1))
         self.round_decimal_digits_to = round_decimal_digits_to
 
     def get_weights(self, layer_number: int, layer_size: int, prev_layer_size: int) -> tuple[np.ndarray, np.ndarray]:
         biases = np.random.uniform(self.biases_range[0], self.biases_range[1], layer_size)
         weights = np.random.uniform(self.weights_range[0], self.weights_range[1], (prev_layer_size, layer_size))
         if self.round_decimal_digits_to is not None:
-            np.round(biases, self.round_decimal_digits_to, out=biases)
-            np.round(weights, self.round_decimal_digits_to, out=weights)
+            np.round(biases, self.round_decimal_digits_to)
+            np.round(weights, self.round_decimal_digits_to)
 
         return biases, weights
 

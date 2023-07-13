@@ -36,8 +36,7 @@ class GradientDescentOptimizer(Optimizer):
         pass
 
     def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
-        # learning_rate * dw
-        return np.multiply(dw, learning_rate, out=dw)
+        return learning_rate * dw
 
     def to_json(self) -> dict:
         return {"type": "gradient"}
@@ -64,13 +63,9 @@ class MomentumOptimizer(Optimizer):
         self.previous_dw = [np.zeros_like(weights) for weights in network.layer_weights]
 
     def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
-        # learning_rate * dw + self.alpha * self.previous_dw[layer_number]
-        previous = self.previous_dw[layer_number]
-        np.multiply(previous, self.alpha, out=previous)
-        np.multiply(dw, learning_rate, out=dw)
-        np.add(dw, previous, out=dw)
-        np.copyto(previous, dw)
-        return dw
+        dw_matrix =  learning_rate * dw + self.alpha * self.previous_dw[layer_number]
+        self.previous_dw[layer_number] = dw_matrix
+        return dw_matrix
 
     def to_json(self) -> dict:
         return {"type": "momentum", "alpha": self.alpha, "previous_dw": ndarray_list_to_json(self.previous_dw)}
@@ -100,23 +95,11 @@ class RMSPropOptimizer(Optimizer):
 
     def initialize(self, network: Network):
         self.previous_s_matrix = [np.zeros_like(weights) for weights in network.layer_weights]
-        self.tmp_matrices = [np.zeros_like(weights) for weights in network.layer_weights]
 
     def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
-        # s_matrix = self.gamma * self.previous_s_matrix[layer_number] + (1 - self.gamma) * np.square(dw)
-        tmp = self.tmp_matrices[layer_number]
-        np.square(dw, out=tmp)
-        np.multiply(tmp, 1.0 - self.gamma, out=tmp)
-        previous = self.previous_s_matrix[layer_number]
-        np.multiply(previous, self.gamma, out=previous)
-        np.add(previous, tmp, out=previous)
-
-        # learning_rate / np.sqrt(s_matrix + self.epsilon) * dw
-        np.copyto(tmp, previous)
-        np.add(tmp, self.epsilon, out=tmp)
-        np.sqrt(tmp, out=tmp)
-        np.divide(learning_rate, tmp, out=tmp)
-        return np.multiply(tmp, dw, out=dw)
+        s_matrix =  self.gamma * self.previous_s_matrix[layer_number] + (1.0 - self.gamma) * np.square(dw)
+        self.previous_s_matrix[layer_number] = s_matrix
+        return learning_rate / np.sqrt(s_matrix + self.epsilon) * dw
 
     def to_json(self) -> dict:
         return {"type": "rmsprop", "gamma": self.gamma, "epsilon": self.epsilon, "previous_s_matrix": ndarray_list_to_json(self.previous_s_matrix)}
@@ -152,38 +135,19 @@ class AdamOptimizer(Optimizer):
     def initialize(self, network: Network):
         self.m_per_layer = [np.zeros_like(weights) for weights in network.layer_weights]
         self.v_per_layer = [np.zeros_like(weights) for weights in network.layer_weights]
-        self.tmp_matrices = [np.zeros_like(weights) for weights in network.layer_weights]
 
     def start_next_epoch(self, epoch_number: int):
         self.one_minus_beta1_power_epoch = 1.0 - np.power(self.beta1, epoch_number)
         self.one_minus_beta2_power_epoch = 1.0 - np.power(self.beta2, epoch_number)
 
     def apply(self, layer_number: int, learning_rate: float, dw: np.ndarray) -> np.ndarray:
-        tmp = self.tmp_matrices[layer_number]
+        self.m_per_layer[layer_number] = self.beta1 * self.m_per_layer[layer_number] + (1.0 - self.beta1) * dw
+        self.v_per_layer[layer_number] = self.beta2 * self.v_per_layer[layer_number] + (1.0 - self.beta2) * np.square(dw)
 
-        # self.m_per_layer[layer_number] = self.beta1 * self.m_per_layer[layer_number] + (1 - self.beta1) * dw
-        m = self.m_per_layer[layer_number]
-        np.multiply(m, self.beta1, out=m)
-        np.multiply(dw, 1.0 - self.beta1, out=tmp)
-        np.add(m, tmp, out=m)
+        m_hat = self.m_per_layer[layer_number] / self.one_minus_beta1_power_epoch
+        v_hat = self.v_per_layer[layer_number] / self.one_minus_beta2_power_epoch
 
-        # self.v_per_layer[layer_number] = self.beta2 * self.v_per_layer[layer_number] + (1 - self.beta2) * np.square(dw)
-        v = self.v_per_layer[layer_number]
-        np.multiply(v, self.beta2, out=v)
-        np.square(dw, out=tmp)
-        np.multiply(tmp, 1.0 - self.beta2, out=tmp)
-        np.add(v, tmp, out=v)
-
-        # m_hat = self.m_per_layer[layer_number] / (1 - np.power(self.beta1, epoch_number))
-        np.divide(m, self.one_minus_beta1_power_epoch, out=dw)
-        # v_hat = self.v_per_layer[layer_number] / (1 - np.power(self.beta2, epoch_number))
-        np.divide(v, self.one_minus_beta2_power_epoch, out=tmp)
-
-        # dw = learning_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)
-        np.sqrt(tmp, out=tmp)
-        np.add(tmp, self.epsilon, out=tmp)
-        np.multiply(dw, learning_rate, out=dw)
-        return np.divide(dw, tmp, out=dw)
+        return learning_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)
 
     def to_json(self) -> dict:
         return {"type": "adam", "beta1": self.beta1, "beta2": self.beta2, "epsilon": self.epsilon, "m_per_layer": ndarray_list_to_json(self.m_per_layer), "v_per_layer": ndarray_list_to_json(self.v_per_layer)}
