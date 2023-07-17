@@ -154,7 +154,7 @@ class LogisticActivationFunction(ActivationFunction):
         return {"type": "logistic", "beta": self.minus_beta_times_two / -2.0}
 
     def __repr__(self) -> str:
-        return f"TanhActivationFunction beta={self.minus_beta_times_two / -2.0}"
+        return f"LogisticActivationFunction beta={self.minus_beta_times_two / -2.0}"
 
     def __str__(self) -> str:
         return self.__repr__()
