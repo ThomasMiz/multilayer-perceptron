@@ -27,7 +27,7 @@ def ndarray_to_json(x: np.ndarray) -> dict:
 
 def ndarray_from_json(d: dict) -> np.ndarray:
     shape = (int(d["rows"]), int(d["columns"])) if "columns" in d else (int(d["rows"]), )
-    return np.frombuffer(binascii.unhexlify(d["rawbytes"]), dtype=np.float64).reshape(shape)
+    return np.copy(np.frombuffer(binascii.unhexlify(d["rawbytes"]), dtype=np.float64).reshape(shape))
 
 
 def ndarray_list_to_json(x: list[np.ndarray]) -> list:

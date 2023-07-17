@@ -43,12 +43,12 @@ class CostAverageErrorFunction(ErrorFunction):
     def error_for_single(self, expected_output: np.ndarray, actual_output: np.ndarray) -> float:
         tmp = np.subtract(expected_output, actual_output)
         np.square(tmp, out=tmp)
-        return np.average(tmp) * 0.5
+        return tmp.sum() * 0.5
 
     def error_for_dataset(self, expected_outputs: list[np.ndarray], actual_outputs: list[np.ndarray]) -> float:
-        tmp = np.subtract(expected_outputs, actual_outputs).sum(axis=1)
+        tmp = np.subtract(expected_outputs, actual_outputs)
         np.square(tmp, out=tmp)
-        return np.average(tmp) * 0.5
+        return tmp.sum() * 0.5 / tmp.shape[0]
 
     def to_json(self) -> dict:
         return {"type": "cost_average"}
